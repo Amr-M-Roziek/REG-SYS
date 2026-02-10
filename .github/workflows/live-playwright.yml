@@ -1,0 +1,24 @@
+name: Live Poster26 Tests
+on:
+  workflow_dispatch:
+jobs:
+  test-live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+        working-directory: icpm2026/poster26/tests/playwright
+      - run: npx playwright install --with-deps
+        working-directory: icpm2026/poster26/tests/playwright
+      - run: npx playwright test --reporter=line
+        working-directory: icpm2026/poster26/tests/playwright
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-results
+          path: |
+            icpm2026/poster26/tests/screenshots/*.png
+            icpm2026/poster26/tests/screenshots/results.live.playwright.json

@@ -1,0 +1,102 @@
+[
+    {
+        "name":  "T1-valid-0co",
+        "email":  "dpj3rtw6+193422485@icpm.com",
+        "ok":  true,
+        "note":  "redirect to welcome",
+        "code":  "302",
+        "location":  "http://reg-sys.com/icpm2026/poster26/welcome.php"
+    },
+    {
+        "name":  "T2-valid-1co",
+        "email":  "wpv8vpcv+193422487@example.com",
+        "ok":  true,
+        "note":  "redirect to welcome",
+        "code":  "302",
+        "location":  "http://reg-sys.com/icpm2026/poster26/welcome.php"
+    },
+    {
+        "name":  "T3-valid-5co",
+        "email":  "4rqvt!vv+193422488@mailhost.com",
+        "ok":  true,
+        "note":  "redirect to welcome",
+        "code":  "302",
+        "location":  "http://reg-sys.com/icpm2026/poster26/welcome.php"
+    },
+    {
+        "name":  "T4-coemail-equals-main",
+        "email":  "#7qammdl+193422494@example.com",
+        "ok":  true,
+        "note":  "redirect to welcome",
+        "code":  "302",
+        "location":  "http://reg-sys.com/icpm2026/poster26/welcome.php"
+    },
+    {
+        "name":  "T5-duplicate-coemails",
+        "email":  "n6^6ol4!+193422497@localdomain.com",
+        "ok":  [
+
+               ],
+        "note":  "no redirect",
+        "code":  "200",
+        "location":  [
+
+                     ]
+    },
+    {
+        "name":  "T6-invalid-coemail-format",
+        "email":  "arwdsvsb+193422500@example.com",
+        "ok":  [
+
+               ],
+        "note":  "no redirect",
+        "code":  "200",
+        "location":  [
+
+                     ]
+    },
+    {
+        "name":  "T7-missing-abstract",
+        "email":  "hhyelxl@+193422503@icpm.com",
+        "ok":  [
+
+               ],
+        "note":  "no redirect",
+        "code":  "200",
+        "location":  [
+
+                     ]
+    },
+    {
+        "name":  "T8-invalid-file-type",
+        "email":  "qpksud1x+193422506@mailhost.com",
+        "ok":  [
+
+               ],
+        "note":  "no redirect",
+        "code":  "200",
+        "location":  [
+
+                     ]
+    },
+    {
+        "name":  "T9-weak-password",
+        "email":  "mbgwo@k!+193422508@icpm.com",
+        "ok":  true,
+        "note":  "redirect to welcome",
+        "code":  "302",
+        "location":  "http://reg-sys.com/icpm2026/poster26/welcome.php"
+    },
+    {
+        "name":  "T10-duplicate-email",
+        "email":  "dpj3rtw6+193422485@icpm.com",
+        "ok":  [
+
+               ],
+        "note":  "no redirect",
+        "code":  "200",
+        "location":  [
+
+                     ]
+    }
+]

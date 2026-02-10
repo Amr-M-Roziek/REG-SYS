@@ -1,0 +1,84 @@
+/**
+ * Imports
+ **/
+@import "./variables/variables";
+.ur-payments-details {
+	table,
+	tr,
+	td,
+	th {
+		border: none;
+		text-align: left;
+		padding: 15px;
+	}
+	.ur-payment-table-row {
+		border-bottom: 1px solid #eee;
+	}
+	table td {
+		font-weight: 500;
+		.ur_payment_active {
+			color: #09bf52;
+		}
+		.ur_eclipse {
+			height: 8px;
+			width: 8px;
+			background: #09bf52;
+			border-radius: 50%;
+			display: inline-block;
+			margin-right: 10px;
+			vertical-align: middle;
+		}
+	}
+	.ur-payment-actions {
+		text-align: right;
+		#ur_cancel_payment {
+			text-decoration: none;
+			margin-right: 22px;
+			cursor: pointer;
+		}
+		#ur_change_payment {
+			/* Change Payment */
+			text-decoration: none;
+			line-height: 19px;
+			letter-spacing: 0.03em;
+			color: #ffffff;
+			cursor: pointer;
+			width: 164px;
+			height: 38px;
+			padding: 5px;
+			background: #475bb2;
+			border-radius: 4px;
+		}
+	}
+}
+
+.ur-change-payment-container {
+	.ur-change-payment-title label {
+		font-weight: 500;
+		text-align: left;
+		font-family: Segoe UI;
+	}
+	.ur-card-information-box {
+		margin-top: 30px;
+		label {
+			text-align: left;
+			font-family: Segoe UI;
+		}
+	}
+	.user-registration-save-change-payment {
+		margin-top: 30px;
+		text-align: right;
+		#save_change_payment {
+			text-decoration: none;
+			line-height: 19px;
+			letter-spacing: 0.03em;
+			color: #ffffff;
+			cursor: pointer;
+			width: 164px;
+			height: 38px;
+			padding: 5px;
+			background: #475bb2;
+			border-radius: 4px;
+		}
+	}
+}

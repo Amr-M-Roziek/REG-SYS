@@ -1,0 +1,81 @@
+/**
+ * Imports
+ **/
+/**
+ * Variables
+ */
+/**
+ * Grid breakpoints
+ *
+ * Define the minimum dimensions at which your layout will change,
+ * adapting to different screen sizes, for use in media queries.
+ **/
+/**
+ * Grid containers
+ *
+ * Define the maximum width of `.ur-container` for different screen sizes.
+ * scss-docs-start container-max-widths
+ **/
+.ur-payments-details table,
+.ur-payments-details tr,
+.ur-payments-details td,
+.ur-payments-details th {
+  border: none;
+  text-align: left;
+  padding: 15px; }
+.ur-payments-details .ur-payment-table-row {
+  border-bottom: 1px solid #eee; }
+.ur-payments-details table td {
+  font-weight: 500; }
+  .ur-payments-details table td .ur_payment_active {
+    color: #09bf52; }
+  .ur-payments-details table td .ur_eclipse {
+    height: 8px;
+    width: 8px;
+    background: #09bf52;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    vertical-align: middle; }
+.ur-payments-details .ur-payment-actions {
+  text-align: right; }
+  .ur-payments-details .ur-payment-actions #ur_cancel_payment {
+    text-decoration: none;
+    margin-right: 22px;
+    cursor: pointer; }
+  .ur-payments-details .ur-payment-actions #ur_change_payment {
+    /* Change Payment */
+    text-decoration: none;
+    line-height: 19px;
+    letter-spacing: 0.03em;
+    color: #ffffff;
+    cursor: pointer;
+    width: 164px;
+    height: 38px;
+    padding: 5px;
+    background: #475bb2;
+    border-radius: 4px; }
+
+.ur-change-payment-container .ur-change-payment-title label {
+  font-weight: 500;
+  text-align: left;
+  font-family: Segoe UI; }
+.ur-change-payment-container .ur-card-information-box {
+  margin-top: 30px; }
+  .ur-change-payment-container .ur-card-information-box label {
+    text-align: left;
+    font-family: Segoe UI; }
+.ur-change-payment-container .user-registration-save-change-payment {
+  margin-top: 30px;
+  text-align: right; }
+  .ur-change-payment-container .user-registration-save-change-payment #save_change_payment {
+    text-decoration: none;
+    line-height: 19px;
+    letter-spacing: 0.03em;
+    color: #ffffff;
+    cursor: pointer;
+    width: 164px;
+    height: 38px;
+    padding: 5px;
+    background: #475bb2;
+    border-radius: 4px; }

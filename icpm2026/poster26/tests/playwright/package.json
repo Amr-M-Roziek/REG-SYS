@@ -1,0 +1,11 @@
+{
+  "name": "icpm-poster26-live-tests",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "@playwright/test": "^1.46.0"
+  },
+  "scripts": {
+    "test": "playwright test"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schemas.wp.org/block-json/1.1",
+  "apiVersion": 3,
+  "name": "user-registration/download-pdf-button",
+  "version": "1.0.0",
+  "title": "Download PDF Button",
+  "category": "user-registration",
+  "description": "The block gives the listing of users.",
+  "keywords": ["user registration download pdf button", "download pdf button"],
+  "textdomain": "user-registration",
+  "example": {
+    "attributes": {}
+  },
+  "supports": {
+    "className": false,
+    "customClassName": false,
+    "reusable": false
+  },
+  "attributes": {
+  },
+  "editorScript": "user-registration-blocks-editor",
+  "editorStyle": "user-registration-blocks-editor"
+}

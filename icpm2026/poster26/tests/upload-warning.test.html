@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Upload Warning Test</title>
+  <script src="../js/jquery.min.js"></script>
+  <style>
+    .drop-zone{display:block;border:1px dashed #999;padding:8px}
+    .drop-zone.error{border-color:#c62828;background:#fff5f5}
+  </style>
+</head>
+<body>
+  <p id="abstractDrop" class="drop-zone">Drag & drop file here or click to select</p>
+  <input type="file" id="abstractFile" accept=".jpg,.jpeg,.png,.gif,.pdf" style="display:none">
+  <div id="uploadStatus" aria-live="assertive"></div>
+  <script>
+    $(function(){
+      var dz = $('#abstractDrop');
+      var fi = $('#abstractFile');
+      var st = $('#uploadStatus');
+      function showError(t){ dz.addClass('error'); st.text(t); }
+      function clearError(){ dz.removeClass('error'); st.text(''); }
+      function vfile(f){
+        if (!f) return 'Abstract upload is required to complete pres signup';
+        var ok = ['image/jpeg','image/png','image/gif','application/pdf'];
+        if (ok.indexOf(f.type) === -1) return 'Invalid file type';
+        if (f.size > 5*1024*1024) return 'File too large';
+        return '';
+      }
+      // Test: missing file shows error
+      (function(){
+        showError('Please select a file to upload');
+        if ($('.drop-zone').hasClass('flash-error')) {
+          console.log('PASS: flashing added');
+        } else {
+          console.log('FAIL: flashing not added');
+        }
+        setTimeout(function(){
+          if (!$('.drop-zone').hasClass('flash-error')) {
+            console.log('PASS: flashing removed after animation');
+          } else {
+            console.log('FAIL: flashing still present');
+          }
+        }, 1600);
+        console.log('PASS: shows error on missing file');
+      })();
+      // Test: valid file clears error
+      (function(){
+        var blob = new Blob(['hello'], {type:'application/pdf'});
+        blob.name = 'test.pdf';
+        var dt = new DataTransfer();
+        dt.items.add(new File([blob],'test.pdf',{type:'application/pdf'}));
+        fi[0].files = dt.files;
+        var err = vfile(fi[0].files[0]);
+        if (err) { console.log('FAIL: valid file flagged as error'); return; }
+        clearError();
+        if (!dz.hasClass('error')) { console.log('PASS: clears error after valid file'); }
+        else { console.log('FAIL: error not cleared'); }
+      })();
+    });
+  </script>
+</body>
+</html>

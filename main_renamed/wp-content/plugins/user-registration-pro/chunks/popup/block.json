@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schemas.wp.org/block-json/1.1",
+  "apiVersion": 3,
+  "name": "user-registration/popup",
+  "version": "1.0.0",
+  "title": "Popup",
+  "category": "user-registration",
+  "description": "The block gives the popup modal.",
+  "keywords": ["user registration popup", "popup"],
+  "textdomain": "user-registration",
+  "example": {
+    "attributes": {}
+  },
+  "supports": {
+    "className": false,
+    "customClassName": false,
+    "reusable": false
+  },
+  "attributes": {
+    "id": {
+      "type": "string"
+    },
+    "isUseAsButton": {
+      "type": "boolean",
+      "default": false
+    },
+    "buttonText": {
+      "type": "string"
+    }
+  },
+  "editorScript": "user-registration-blocks-editor",
+  "editorStyle": "user-registration-blocks-editor"
+}

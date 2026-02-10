@@ -1,0 +1,12 @@
+HTTP/1.1 200 OK
+keep-alive: timeout=5, max=100
+set-cookie: PHPSESSID=38f79cf90e804aa0705676e6b96a9a6a; path=/; secure
+expires: Thu, 19 Nov 1981 08:52:00 GMT
+cache-control: no-store, no-cache, must-revalidate
+pragma: no-cache
+content-type: text/html; charset=UTF-8
+transfer-encoding: chunked
+date: Sun, 14 Dec 2025 19:34:57 GMT
+server: LiteSpeed
+x-turbo-charged-by: LiteSpeed
+

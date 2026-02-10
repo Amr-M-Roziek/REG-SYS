@@ -1,0 +1,82 @@
+<?php
+session_start();
+if (strlen($_SESSION['id']==0)) {
+  header('location:logout.php');
+  } else{
+
+?><!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Welcome </title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/heroic-features.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="#">Welcome !</a>
+            </div>
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">
+                    <li>
+                        <a href="#"><?php echo $_SESSION['name'];?> <?php echo $_SESSION['slname'];?>
+                          </H2></a>
+                    </li>
+                    <li>
+                        <a href="logout.php">Logout</a>
+                    </li>
+
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div>
+    <center>  <img src="images/icpm-logo.png" alt=""/ ></center>
+    </div>
+    <div class="container" style="text-align: center;">
+        <header class="jumbotron hero-spacer">
+            <H2>Welcome! <?php echo $_SESSION['name'];?> <?php echo $_SESSION['slname'];?></H2>
+              <H2>To ICPM 2025</H2>
+
+            <H2> <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=<?php echo $_SESSION['id'];?>" title="Your reference Number is <?php echo $_SESSION['id'];?>" /></H2>
+              <H3>Reg No: <?php echo $_SESSION['id'];?></H3>
+            <br>
+            <H2 style="text-transform:uppercase"><?php echo $_SESSION['scategory'];?></H2>
+            <p><a  href="logout.php" class="btn btn-primary btn-large"> Logout </a>  <a  href="https://icpm.ae/" class="btn btn-primary btn-large"> Back Home </a>
+                <p>
+            </p>
+        </header>
+
+        <hr>
+
+
+
+
+
+        </div>
+
+        <hr>
+
+
+    </div>
+    <script src="js/jquery.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+</body>
+
+</html>
+<?php } ?>

@@ -1,0 +1,682 @@
+/**
+ * Variables
+ */
+/**
+ * Grid breakpoints
+ *
+ * Define the minimum dimensions at which your layout will change,
+ * adapting to different screen sizes, for use in media queries.
+ **/
+/**
+ * Grid containers
+ *
+ * Define the maximum width of `.ur-container` for different screen sizes.
+ * scss-docs-start container-max-widths
+ **/
+.user-registration-content-restriction *,
+.user-registration-content-restriction ::before,
+.user-registration-content-restriction ::after {
+  box-sizing: border-box;
+}
+
+.urcr-label-checkbox-pair {
+  display: flex;
+  align-items: center;
+  padding: 5px 0;
+}
+.urcr-label-checkbox-pair .urcr-label {
+  padding-bottom: 3px;
+}
+.urcr-label-checkbox-pair .urcr-input {
+  margin-left: 8px;
+}
+
+.urcr-hw {
+  width: 50%;
+}
+
+.urcr-content-access-rule-creator-form {
+  max-width: 100%;
+  width: 100%;
+  margin: 0 auto;
+  margin-top: 24px;
+}
+@media (min-width: 768px) {
+  .urcr-content-access-rule-creator-form {
+    max-width: 700px;
+  }
+}
+@media (min-width: 992px) {
+  .urcr-content-access-rule-creator-form {
+    max-width: 900px;
+  }
+}
+@media (min-width: 1200px) {
+  .urcr-content-access-rule-creator-form {
+    max-width: 1080px;
+  }
+}
+
+.urcr-settings-widget {
+  border-style: dashed;
+  margin-bottom: 10px;
+}
+.urcr-settings-widget .urcr-settings-widget-header {
+  cursor: pointer;
+}
+.urcr-settings-widget .urcr-settings-widget-header .handlediv {
+  height: auto;
+  width: auto;
+}
+.urcr-settings-widget .inside {
+  margin: 0;
+}
+.urcr-settings-widget .user-registration-help-tip {
+  top: 5px;
+}
+.urcr-settings-widget .user-registration-help-tip::after {
+  width: 16px !important;
+}
+
+.nav-tab-wrapper {
+  max-width: 675px;
+  margin: 0 auto 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #BABABA;
+}
+.nav-tab-wrapper .urcr-tab {
+  width: 225px;
+  margin: 0;
+  color: #777;
+  text-transform: uppercase;
+  border: none !important;
+  background: none;
+  padding: 10px 20px 16px;
+  cursor: pointer;
+  position: relative;
+  text-align: center;
+}
+.nav-tab-wrapper .urcr-tab:focus {
+  outline: none;
+  box-shadow: none;
+}
+.nav-tab-wrapper .urcr-tab:before {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  right: 0;
+  width: 0;
+  height: 2px;
+  background-color: #6C7CC1;
+  transition: all 0.3s ease-in-out;
+}
+.nav-tab-wrapper .urcr-tab.nav-tab-active, .nav-tab-wrapper .urcr-tab:hover {
+  color: #6C7CC1;
+  background-color: #f2f2f2;
+}
+.nav-tab-wrapper .urcr-tab.nav-tab-active:before, .nav-tab-wrapper .urcr-tab:hover:before {
+  width: 100%;
+}
+.nav-tab-wrapper .urcr-tab:first-child {
+  margin-right: 0;
+}
+
+.urcr-tab-contents-wrapper {
+  padding-top: 14px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget {
+  padding: 20px 26px;
+  background: #FFFFFF;
+  border: 1px solid #EDF2F7;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget:last-child {
+  margin-bottom: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header {
+  padding: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .urcr-widget-header-label {
+  line-height: 140%;
+  color: #222;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .user-registration-button-group {
+  margin-right: 12px !important;
+  background: #F0F0F1;
+  border-radius: 50px;
+  padding: 3px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .user-registration-button-group .urbg-item {
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 0 14px;
+  border-radius: 50px;
+  line-height: 18px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  margin-bottom: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .user-registration-button-group .urbg-item.is-active[data-value=OR] {
+  color: #3779ff;
+  background: #fff;
+  border-color: #3779ff;
+  box-shadow: 0px 1px 3px rgba(71, 91, 178, 0.12), 0px 1px 2px rgba(71, 91, 178, 0.24);
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .user-registration-button-group .urbg-item.is-active[data-value=AND] {
+  color: #ffa225;
+  background: #fff;
+  border-color: #ffa225;
+  box-shadow: 0px 1px 3px rgba(171, 126, 65, 0.12), 0px 1px 2px rgba(174, 131, 74, 0.24);
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .user-registration-button-group .urbg-item.is-active[data-value=NOT] {
+  color: #FF7474;
+  background: #fff;
+  border-color: #FF7474;
+  box-shadow: 0px 1px 3px rgba(180, 73, 73, 0.12), 0px 1px 2px rgba(176, 70, 70, 0.24);
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .ur-d-flex {
+  align-items: center;
+  gap: 6px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .urcr-add-new-conditional-logic-field,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .urcr-add-new-conditional-logic-group {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 150%;
+  color: #575757;
+  width: 100px;
+  padding: 6px 12px;
+  background: #f2f2f2 !important;
+  border: 1px solid #f2f2f2;
+  border-radius: 3px;
+  box-shadow: none;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .urcr-add-new-conditional-logic-group {
+  margin-right: 0;
+  margin-left: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget-header .hndle .handlediv {
+  margin-right: 0;
+  width: 28px;
+  height: 28px;
+  box-shadow: none;
+  background: #fff;
+  border: 1px solid #6C7CC1;
+  border-radius: 3px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside {
+  margin-top: 16px;
+  padding-top: 20px !important;
+  padding-right: 0;
+  padding-left: 0;
+  padding-bottom: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions {
+  position: relative;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions:has(.urcr-logic-group-rule-OR), .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions:has(.urcr-logic-group-rule-AND), .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions:has(.urcr-logic-group-rule-NOT) {
+  padding-right: 42px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-OR {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 5px;
+  background: #89A7E5;
+  width: 2px;
+  height: 100%;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-OR::before, .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-OR::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  width: 22px;
+  height: 2px;
+  background: #89A7E5;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-OR::before {
+  top: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-OR::after {
+  bottom: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-AND {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 5px;
+  background: #F9E2CA;
+  width: 2px;
+  height: 100%;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-AND::before, .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-AND::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  width: 22px;
+  height: 2px;
+  background: #F9E2CA;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-AND::before {
+  top: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-AND::after {
+  bottom: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-NOT {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 5px;
+  background: #F9CACA;
+  width: 2px;
+  height: 100%;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-NOT::before, .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-NOT::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  width: 22px;
+  height: 2px;
+  background: #F9CACA;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-NOT::before {
+  top: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-logic-group-rule-NOT::after {
+  bottom: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-row {
+  margin-right: 0;
+  margin-left: 0;
+  flex-wrap: nowrap;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group {
+  margin-bottom: 20px;
+}
+@media (max-width: 991px) {
+  .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group {
+    flex-direction: column;
+    align-items: unset !important;
+    gap: 16px;
+  }
+  .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-label-container {
+    max-width: 100%;
+    flex: unset;
+  }
+  .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .ur-row {
+    max-width: 100%;
+    flex: unset;
+  }
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper {
+  padding: 16px;
+  background: #f4f4f4;
+  margin-top: 12px;
+  border-radius: 4px;
+  flex-direction: column;
+  gap: 8px;
+  display: none;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper:has(.ur_form_fields_row) {
+  display: flex;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-direction: column;
+}
+@media (min-width: 601px) {
+  .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row {
+    flex-direction: row;
+  }
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row select,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row input {
+  height: 36px !important;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row select.urcr_form_field_name,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row input.urcr_form_field_name {
+  width: 100%;
+}
+@media (min-width: 601px) {
+  .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row select.urcr_form_field_name,
+  .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row input.urcr_form_field_name {
+    width: 130px;
+  }
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row select.urcr_form_field_logic,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row input.urcr_form_field_logic {
+  width: 100%;
+}
+@media (min-width: 601px) {
+  .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row select.urcr_form_field_logic,
+  .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row input.urcr_form_field_logic {
+    width: 70px;
+  }
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row select.urcr_form_field_value,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row input.urcr_form_field_value {
+  width: 100%;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row a {
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 18px;
+  line-height: 28px;
+  cursor: pointer;
+  border: 1px solid #e1e1e1;
+  transition: all 0.3s ease-in-out;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row a svg {
+  width: 16px;
+  height: 16px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .ur-form-group .urcr-form-fields-wrapper .ur_form_fields_row a:hover {
+  border-color: #e3e3e3;
+  background: #e3e3e3;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container > select {
+  margin-left: 8px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group {
+  gap: 10px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group .urbg-item {
+  padding: 6px 8px 6px 10px;
+  background: #FFFFFF;
+  border: 1px solid #E1E1E1;
+  border-radius: 3px;
+  box-shadow: none;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 150%;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 8px;
+  color: #6B6B6B;
+  position: relative;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group .urbg-item:focus {
+  outline: none;
+  box-shadow: none;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group .urbg-item:focus-visible {
+  outline: none;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group .urbg-item::before, .urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group .urbg-item::after {
+  content: "";
+  background: #e1e1e1;
+  border-radius: 50%;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group .urbg-item::before {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+  transition: all 0.3s ease-in-out;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group .urbg-item::after {
+  display: block;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: 1px solid #BDBDBD;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group .urbg-item.is-active {
+  border-color: #475bb2;
+  color: #475BB2;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group .urbg-item.is-active::before {
+  opacity: 1;
+  background: #475BB2;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-label-input-pair .urcr-input-container .user-registration-button-group .urbg-item.is-active::after {
+  border-color: #475BB2;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-sub-logic-group-rule-OR,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-sub-logic-group-rule-AND,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-sub-logic-group-rule-NOT {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  padding: 4px 10px;
+  border-radius: 50px;
+  color: #383838;
+  font-size: 13px;
+  line-height: 120%;
+  font-weight: 600;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-sub-logic-group-rule-OR {
+  background: #E9F0FE;
+  right: -17px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-sub-logic-group-rule-AND {
+  background: #FED9A8;
+  right: -21px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-conditional-logic-definitions .urcr-sub-logic-group-rule-NOT {
+  background: #F9CACA;
+  right: -21px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .select2-container .select2-selection__rendered {
+  padding-right: 0;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .select2-container .select2-selection__choice {
+  margin-right: 0;
+  margin-left: 0;
+  padding: 4px 10px;
+  background: #E9E9E9;
+  border-radius: 3px;
+  border-color: #e9e9e9;
+  flex-direction: row-reverse;
+  gap: 6px;
+  padding-left: 6px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .select2-container .select2-selection__choice__remove {
+  font-size: 18px;
+  line-height: 18px;
+  position: relative;
+  top: -1px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .select2-container .select2-selection.select2-selection--single {
+  height: 38px;
+  border: 1px solid #e1e1e1;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .select2-container .select2-selection.select2-selection--single .select2-selection__rendered {
+  padding-right: 10px;
+  line-height: 36px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .select2-container .select2-selection.select2-selection--single .select2-selection__arrow {
+  top: 4px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .select2-container .select2-selection.select2-selection--single .select2-selection__arrow b {
+  margin-top: -2px;
+  margin-right: -8px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-notice.urcr-notice-warning {
+  padding: 14px 20px;
+  background: #FEFCE8;
+  border: 0;
+  border-right: 3px solid #FFC700;
+  box-shadow: none;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .inside .urcr-notice.urcr-notice-warning p {
+  margin: 0;
+  font-weight: 400;
+  line-height: 150%;
+  color: #D38413;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .urcr-trash {
+  width: 34px;
+  height: 34px;
+  background: #F4F4F4;
+  border: 1px solid #FFFFFF;
+  border-radius: 5px;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease-in-out;
+  margin-right: 0;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .urcr-trash span {
+  color: #949494;
+  position: relative;
+  right: 1px;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .urcr-trash:hover {
+  background: #FFF4F4;
+  border-color: #F25656;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget .urcr-trash:hover span {
+  color: #F25656;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget input[type=text],
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget input[type=email],
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget input[type=password],
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget input[type=number],
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget textarea,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget select {
+  height: 34px !important;
+  border-color: #E1E1E1;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget input[type=text]:focus,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget input[type=email]:focus,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget input[type=password]:focus,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget input[type=number]:focus,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget textarea:focus,
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget select:focus {
+  border-color: #475bb2;
+  outline: none;
+  box-shadow: none;
+}
+.urcr-tab-contents-wrapper .urcr-tab-content .urcr-settings-widget.closed .handlediv {
+  width: 28px;
+  height: 28px;
+  box-shadow: none;
+  background: #fff;
+  border: 1px solid #c1c1c1;
+  border-radius: 3px;
+}
+
+#urcr-enable-time-limit {
+  margin-top: 15px;
+}
+
+#tiptip_holder {
+  top: -35px !important;
+}
+
+.urcr-add-new-conditional-logic-field {
+  width: 105px;
+  font-size: 12px;
+  margin-left: 3px;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  text-indent: 1px !important;
+  text-overflow: "" !important;
+  background: none !important;
+}
+.urcr-add-new-conditional-logic-field::-ms-expand {
+  display: none !important;
+}
+
+.urcrra-redirect-input-container .urcr-input {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.urcrra-shortcode-args {
+  margin-top: 5px;
+}
+
+.urcr-notice {
+  background: #fff;
+  border: 1px solid #ccd0d4;
+  border-right-color: rgb(204, 208, 212);
+  border-right-width: 4px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+  padding: 1px 12px;
+}
+.urcr-notice.urcr-notice-warning {
+  border-right-color: #ffb900;
+}
+
+.urcr-puncher {
+  flex-grow: 1;
+}
+
+.urcr-enable-access-rule-container {
+  margin-bottom: 25px;
+  user-select: none;
+}
+.urcr-enable-access-rule-container .urcr-enable-access-rule-switch {
+  margin-left: 10px;
+}
+.urcr-enable-access-rule-container .urcr-enable-access-rule-label {
+  font-weight: bold;
+}
+
+p.urcr-conditional-logic-warning {
+  padding: 14px 20px;
+  background: #fefce8;
+  border: 0;
+  border-right: 3px solid #ffc700;
+  box-shadow: none;
+}
+
+input[type=checkbox].urcr-enable-access-rule {
+  display: none;
+  background: rgb(102.6654179104, 109.1689023066, 138.4345820896);
+  width: 28px;
+  height: 18px;
+  border-radius: 10px !important;
+  display: flex;
+  align-items: center;
+  flex: 0 0 28px;
+  margin: 0;
+  position: relative;
+  border: 2px solid rgb(102.6654179104, 109.1689023066, 138.4345820896);
+  transition: 0.1s transform ease;
+  box-sizing: border-box;
+}
+input[type=checkbox].urcr-enable-access-rule::before {
+  content: none;
+}
+input[type=checkbox].urcr-enable-access-rule::after {
+  display: inline-block;
+  content: "";
+  height: 14px;
+  width: 14px;
+  background: #ffffff;
+  border-radius: 50%;
+  position: absolute;
+  transition: 0.1s transform ease;
+}
+input[type=checkbox].urcr-enable-access-rule:checked {
+  background: #4CC741;
+  border-color: #4CC741;
+}
+input[type=checkbox].urcr-enable-access-rule:checked::after {
+  transform: translateX(-10px);
+}

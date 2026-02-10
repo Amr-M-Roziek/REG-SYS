@@ -1,0 +1,36 @@
+#user-registration-sms-verification-otp-box-title {
+  font-size: 20px;
+  font-weight: bold;
+  letter-spacing: 0.8px; }
+
+#user-registration-sms-verification-attempts-left {
+  font-size: 16px; }
+
+#user-registration-sms-verification-otp-resend-btn {
+  font-size: 14px; }
+
+#user-registration-sms-verification-footer {
+  display: flex;
+  justify-content: space-between; }
+
+#user-registration-sms-verification-submit-container {
+  display: flex;
+  justify-content: end; }
+
+#user-registration-sms-verification-spinner {
+  margin: 10px; }
+
+#user-registration-sms-verification-otp-submit-btn {
+  color: #ffffff; }
+
+@media (max-width: 450px) {
+  #user-registration-sms-verification-footer {
+    justify-content: unset;
+    flex-direction: column-reverse;
+    gap: 12px; }
+
+  #user-registration-sms-verification-submit-container {
+    display: block; }
+
+  #user-registration-sms-verification-otp-submit-btn {
+    width: 100%; } }

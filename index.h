@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8">
+	<title>ICPM - Building a Culture of Innovation and Technology in Healthcare</title>
+	<meta http-equiv="refresh" content="0; url=http://icpm.ae/" />
+  Script on page load Section
+  ============================-->
+	<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet" /><script src="https://code.jquery.com/jquery-3.5.1.min.js"></script><script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script><script>
+  $(document).ready(function () {
+    $("#myModal").modal('show');
+  });
+  </script><!-- Favicons -->
+	<link href="img/favicon.png" rel="icon" />
+	<link href="img/apple-touch-icon.png" rel="apple-touch-icon" /><!-- Google Fonts -->
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i|Raleway:300,400,500,700,800" rel="stylesheet" /><!-- Bootstrap CSS File -->
+	<link href="lib/bootstrap/css/bootstrap.min.css" rel="stylesheet" /><!-- Libraries CSS Files -->
+	<link href="lib/font-awesome/css/font-awesome.min.css" rel="stylesheet" />
+	<link href="lib/animate/animate.min.css" rel="stylesheet" />
+	<link href="lib/venobox/venobox.css" rel="stylesheet" />
+	<link href="lib/owlcarousel/assets/owl.carousel.min.css" rel="stylesheet" /><!-- Main Stylesheet File -->
+	<link href="css/style.css" rel="stylesheet" />
+</head>
+<body><!-- Messenger Chat Plugin Code -->
+<div id="fb-root"><span style="font-size: 1rem;">&nbsp;</span>
+<pre>
+
+</pre>
+</div>
+
+<p></p>
+</body>
+</html>

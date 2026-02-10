@@ -1,0 +1,256 @@
+#user_registration_frontend_listing_shortcode {
+	#copy-shortcode {
+		color: #676d8a;
+		border-color: #676d8a;
+		background: #fff;
+		vertical-align: top;
+		position: absolute;
+		right: 12px;
+		border: #efefef 1px solid;
+		padding: 0 5px;
+		line-height: 1;
+		&:focus {
+			outline: none;
+		}
+	}
+}
+
+.urfl-input {
+	width: 50%;
+}
+
+
+.ur-metabox-field-detail {
+    .ur-select {
+        width: 100%;
+        padding: 4px 12px;
+        border: 1px solid #aaa;
+        border-radius: 4px;
+        font-size: 16px;
+        color: #4C5477;
+
+        &:hover {
+            border-color: #4C5477;
+        }
+    }
+
+    .selected-options {
+        margin-top: 16px;
+        .ur-draggable-option {
+            display: flex;
+            background-color: #ffffff;
+
+            .selected-option-container {
+                display: flex;
+                align-items: center;
+                padding: 0 12px;
+                outline: 1px solid #aaa;
+                width: 100%;
+                border-radius: 2px;
+
+                svg {
+                    cursor: all-scroll;
+                }
+
+                .ur-selected {
+                    border: none;
+                    margin-left: 8px;
+                    width: 100%;
+                    font-size: 16px;
+                    color: #4C5477;
+
+                    &:focus {
+                        outline: none;
+                    }
+
+                    &:hover {
+                        color: #2271b1;
+                    }
+                }
+
+                .ur-input-group {
+                    display: flex;
+                    flex-direction: column;
+                    padding: 8px 0;
+                    row-gap: 8px;
+                    width: 100%;
+                    margin-left: 16px;
+
+                    input::placeholder {
+                        color: #898989;
+                    }
+                }
+
+                &:hover {
+                    outline-color: #4C5477;
+                }
+            }
+
+            .delete-option {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                outline: 1px solid #aaa;
+                padding: 8px;
+                margin-left: 8px;
+                border-radius: 2px;
+                height: fit-content;
+                cursor: pointer;
+
+                svg {
+                    width: 24px;
+                    stroke: #898989;
+                }
+
+                &:hover {
+                    background-color: #FFE4E4;
+                    outline-color: #FF0000;
+
+                    svg {
+                        stroke: #FF0000;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// For Tooltip icon fix in the admin section Frontend listings settings
+.postbox {
+    .ur-metabox-field {
+        .ur-metabox-field-label {
+            .user-registration-help-tip {
+                float: right;
+                margin: 0 25px 0 0;
+            }
+        }
+    }
+}
+
+
+
+// Customize Select2 style
+.select2-results__option .wrap:before {
+	content: "\2610";
+	width: 25px;
+	height: 25px;
+	padding-right: 10px;
+}
+
+.select2-results__option[data-selected="true"] .wrap:before {
+	content: "\2714";
+}
+
+.select2-drop,
+.select2-dropdown {
+	z-index: 999999 !important;
+}
+
+.select2-results {
+	line-height: 1.5em;
+
+	.select2-results__option,
+	.select2-results__group {
+		margin: 0;
+		padding: 8px;
+	}
+}
+
+.select2-dropdown {
+	border-color: gray;
+}
+
+.select2-dropdown--below {
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+}
+
+.select2-dropdown--above {
+	box-shadow: 0 -1px 1px rgba(0, 0, 0, 0.1);
+}
+
+.select2-container {
+	.select2-selection__rendered.ui-sortable li {
+		cursor: move;
+	}
+
+	.select2-selection {
+		border-color: gray;
+	}
+
+	.select2-search__field {
+		min-width: 20px;
+	}
+
+	.select2-selection--single {
+		height: 32px;
+		border: 1px solid #e1e1e1;
+
+		.select2-selection__rendered {
+			display: block;
+			line-height: 32px;
+			padding-right: 24px;
+		}
+
+		.select2-selection__arrow {
+			right: 3px;
+			height: 30px;
+
+			b {
+				margin-top: -2px;
+				margin-left: -8px;
+			}
+		}
+	}
+
+	.select2-selection--multiple {
+		min-height: 28px;
+		border-radius: 4px;
+		line-height: 1.5;
+		border: 1px solid #ddd !important;
+		padding-left: 4px;
+
+		li {
+			margin: 0;
+		}
+
+		.select2-selection__choice {
+			padding: 2px 6px;
+		}
+
+		.select2-selection__rendered {
+			// display: block;
+			display: flex;
+			margin: 0px;
+
+			.select2-selection__choice {
+				margin: 4px;
+				line-height: 1.4;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+
+				.select2-selection__choice__remove {
+					bottom: 0px;
+				}
+			}
+		}
+	}
+
+	.select2-selection__clear {
+		color: #999;
+		margin-top: -1px;
+	}
+
+	.select2-search--inline {
+		.select2-search__field {
+			font-family: inherit;
+			font-size: inherit;
+			font-weight: inherit;
+			padding: 3px 0;
+			margin: 0;
+			line-height: 1;
+			min-height: 26px;
+			height: 32px;
+		}
+	}
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schemas.wp.org/block-json/1.1",
+  "apiVersion": 3,
+  "name": "user-registration/content-restriction",
+  "version": "1.0.0",
+  "title": "Content Restriction (Deprecated)",
+  "category": "user-registration",
+  "description": "The block restricts the content (only text).",
+  "keywords": ["user registration content restriction", "content restriction"],
+  "textdomain": "user-registration",
+  "example": {
+    "attributes": {}
+  },
+  "supports": {
+    "className": false,
+    "customClassName": false,
+    "reusable": false,
+	"inserter": false
+  },
+  "attributes": {
+    "accessRole": {
+      "type": "string",
+      "default": ""
+    },
+    "accessControl": {
+      "type": "string",
+      "default": "access"
+    },
+    "content": {
+      "type": "string",
+	  "source" : "html",
+      "selector":"div"
+    }
+  },
+  "editorScript": "user-registration-blocks-editor",
+  "editorStyle": "user-registration-blocks-editor"
+}

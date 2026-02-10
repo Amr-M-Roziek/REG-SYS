@@ -1,0 +1,36 @@
+services:
+  web:
+    build: .
+    container_name: regsys_web
+    ports:
+      - "8080:80"
+    environment:
+      - DB_HOST=db
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - db
+  db:
+    image: mysql:8.0
+    container_name: regsys_db
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      - MYSQL_ROOT_PASSWORD=regsys_root
+    ports:
+      - "3307:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: regsys_pma
+    ports:
+      - "8081:80"
+    environment:
+      - PMA_HOST=db
+      - PMA_USER=root
+      - PMA_PASSWORD=regsys_root
+    depends_on:
+      - db
+volumes:
+  db-data:

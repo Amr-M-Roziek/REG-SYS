@@ -1,0 +1,29 @@
+# IDE/System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+error_log
+debug.log
+php-error.log
+
+# Temporary/Sensitive files
+icpm2026/temp/sites.xml
+check_ftp.txt
+upload_ftp.txt
+upload_ftp_retry.txt
+retry_ftp_upload.bat
+deploy_to_cloud.ps1
+cookie.txt
+cookies_*.txt
+
+# Dependencies
+node_modules/
+vendor/
+
+# Config
+.env
+wp-config.php

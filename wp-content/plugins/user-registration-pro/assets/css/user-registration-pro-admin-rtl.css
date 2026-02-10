@@ -1,0 +1,878 @@
+/**
+ * Variables
+ */
+/**
+ * Grid breakpoints
+ *
+ * Define the minimum dimensions at which your layout will change,
+ * adapting to different screen sizes, for use in media queries.
+ **/
+/**
+ * Grid containers
+ *
+ * Define the maximum width of `.ur-container` for different screen sizes.
+ * scss-docs-start container-max-widths
+ **/
+.user-registration-pro-dashboard *, .user-registration-pro-dashboard::before, .user-registration-pro-dashboard::after {
+  box-sizing: border-box;
+}
+
+.single-field__wysiwyg {
+  border: 1px solid;
+  opacity: 0.5;
+  color: #000;
+  background: #f4f4f4;
+  cursor: not-allowed;
+  border-color: #d3d3d3;
+  padding: 0 3.5rem;
+  min-height: 36px;
+}
+
+.single-field__wysiwyg ul {
+  list-style-type: inherit;
+}
+
+.single-field__signature {
+  width: 40%;
+  height: auto;
+  border: 1px solid #e1e1e1;
+}
+
+#urfa-forms-summary-table .sorting-indicator {
+  visibility: visible;
+  display: inline-block;
+}
+#urfa-forms-summary-table .urfa-active-form-row {
+  background: #475bb2;
+  border: 1px solid #475bb2;
+}
+#urfa-forms-summary-table .urfa-active-form-row td {
+  color: #fff;
+}
+
+.urfa-summary-table-pagination-link.disabled {
+  pointer-events: none;
+}
+
+#footer-upgrade {
+  display: none;
+}
+
+.user-registration-pro-registration-overview-chart-report-legends ul li,
+.user-registration-pro-specific-form-registration-overview-chart-report-legends ul li {
+  display: flex;
+  align-items: center;
+  margin-left: 10px;
+  background: #eee;
+  padding: 4px 8px;
+  word-break: break-all;
+  border-radius: 20px;
+}
+.user-registration-pro-registration-overview-chart-report-legends ul li .user-registration-pro-color-tag,
+.user-registration-pro-specific-form-registration-overview-chart-report-legends ul li .user-registration-pro-color-tag {
+  display: block;
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 10px;
+  margin-left: 5px;
+}
+
+.column-shortcode {
+  width: 280px;
+}
+
+.ur_conditional_logic_wrapper {
+  margin-bottom: 2rem;
+}
+.ur_conditional_logic_wrapper .ur-conditional-wrapper {
+  display: flex;
+}
+.ur_conditional_logic_wrapper .ur-conditional-wrapper .ur-conditional-condition {
+  margin: 0 16px;
+}
+
+.ur-check {
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  margin-right: -9px;
+}
+.ur-check label {
+  margin: 0 8px;
+}
+
+.ur_addons_wrap .ur-plugin-card-bottom {
+  padding: 10px;
+  background: white;
+  height: 50px;
+}
+.ur_addons_wrap .ur-plugin-card-bottom .status {
+  text-align: right;
+  float: right;
+  clear: right;
+  width: 65%;
+  padding-top: 5px;
+  width: calc(100% - 180px);
+}
+.ur_addons_wrap .ur-plugin-card-bottom .status span.status-label {
+  color: #666;
+}
+.ur_addons_wrap .ur-plugin-card-bottom .status span.status-label.status-active {
+  color: #2a9b39;
+}
+.ur_addons_wrap .ur-plugin-card-bottom .status span.status-label.status-inactive {
+  color: #a00;
+}
+.ur_addons_wrap .ur-plugin-card-bottom .action-buttons {
+  float: left;
+  clear: left;
+  max-width: 180px;
+}
+.ur_addons_wrap .ur-plugin-card-bottom .action-buttons a {
+  min-height: 0px;
+}
+.ur_addons_wrap .ur-plugin-card-bottom .action-buttons.upgrade-plan {
+  margin: 0 auto;
+}
+
+.ur-pro-field-mapping-box {
+  margin: 0 0 8px;
+}
+.ur-pro-field-mapping-box .ur-pro-external-field-map-group {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 4px;
+  background: rgb(240.4392835821, 241.3522713704, 245.4607164179);
+}
+.ur-pro-field-mapping-box .ur-pro-external-field-map-group .ur-pro-external-field-map-form-group {
+  flex: 1;
+}
+.ur-pro-field-mapping-box .ur-pro-external-field-map-group .ur-pro-operator {
+  width: 120px;
+  margin: 0 8px;
+  text-align: center;
+}
+.ur-pro-field-mapping-box .ur-pro-external-field-map-group .ur-pro-value {
+  flex: 1;
+  margin-left: 8px;
+}
+.ur-pro-field-mapping-box .ur-pro-external-field-map-group .add {
+  padding: 8px;
+  max-width: inherit;
+  flex: 0 0 auto;
+}
+.ur-pro-field-mapping-box .ur-pro-external-field-map-group .remove:hover {
+  background: #ff4f55;
+  border-color: #ff4f55;
+  color: #ffffff;
+}
+
+.ur-grid-lists .ur-grid-list-item .ur-label .ur-portal-tooltip {
+  margin-right: 2px;
+  font-size: 16px;
+  top: 3px;
+}
+
+.ur-export-custom-fields p {
+  font-weight: bold;
+}
+.ur-export-custom-fields .ur-form-fields-container {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-radio], .ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-checkbox], .ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-select], .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-radio], .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-checkbox], .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-select], .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-radio], .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-checkbox], .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-select] {
+  margin-bottom: 18px;
+  justify-content: space-between;
+}
+.ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-radio] .ur-toggle-bulk-options, .ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-checkbox] .ur-toggle-bulk-options, .ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-select] .ur-toggle-bulk-options, .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-radio] .ur-toggle-bulk-options, .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-checkbox] .ur-toggle-bulk-options, .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-select] .ur-toggle-bulk-options, .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-radio] .ur-toggle-bulk-options, .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-checkbox] .ur-toggle-bulk-options, .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-select] .ur-toggle-bulk-options {
+  float: left;
+  margin-top: 3px;
+  color: #2271b1;
+  transition-duration: 0.05s;
+  transition-timing-function: ease-in-out;
+  flex: 0 0 80%;
+  text-align: end;
+}
+.ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-radio] .ur-toggle-bulk-options:focus, .ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-checkbox] .ur-toggle-bulk-options:focus, .ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-select] .ur-toggle-bulk-options:focus, .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-radio] .ur-toggle-bulk-options:focus, .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-checkbox] .ur-toggle-bulk-options:focus, .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-select] .ur-toggle-bulk-options:focus, .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-radio] .ur-toggle-bulk-options:focus, .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-checkbox] .ur-toggle-bulk-options:focus, .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-select] .ur-toggle-bulk-options:focus {
+  box-shadow: none;
+}
+.ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-radio] .ur-toggle-bulk-options:hover, .ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-checkbox] .ur-toggle-bulk-options:hover, .ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-select] .ur-toggle-bulk-options:hover, .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-radio] .ur-toggle-bulk-options:hover, .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-checkbox] .ur-toggle-bulk-options:hover, .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-select] .ur-toggle-bulk-options:hover, .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-radio] .ur-toggle-bulk-options:hover, .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-checkbox] .ur-toggle-bulk-options:hover, .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-select] .ur-toggle-bulk-options:hover {
+  color: #135e96;
+}
+.ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-textarea], .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-textarea], .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-textarea] {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.ur-toggle-content .ur-general-setting.ur-setting-checkbox label[for=ur-type-textarea] .ur-portal-tooltip::after, .ur-toggle-content .ur-general-setting.ur-setting-radio label[for=ur-type-textarea] .ur-portal-tooltip::after, .ur-toggle-content .ur-general-setting.ur-setting-select label[for=ur-type-textarea] .ur-portal-tooltip::after {
+  line-height: unset;
+}
+.ur-toggle-content .ur-general-setting.ur-setting-checkbox > .ur-bulk-options-container, .ur-toggle-content .ur-general-setting.ur-setting-radio > .ur-bulk-options-container, .ur-toggle-content .ur-general-setting.ur-setting-select > .ur-bulk-options-container {
+  padding: 8px 12px 13px;
+  border-radius: 6px;
+  position: relative;
+  background: #f3f3f3;
+}
+.ur-toggle-content .ur-general-setting.ur-setting-checkbox > .ur-bulk-options-container::after, .ur-toggle-content .ur-general-setting.ur-setting-radio > .ur-bulk-options-container::after, .ur-toggle-content .ur-general-setting.ur-setting-select > .ur-bulk-options-container::after {
+  content: "";
+  position: absolute;
+  border-bottom: 15px solid #f3f3f3;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  top: -13px;
+  left: 18px;
+}
+.ur-toggle-content .ur-general-setting.ur-setting-checkbox > .ur-bulk-options-container .ur-setting-textarea, .ur-toggle-content .ur-general-setting.ur-setting-radio > .ur-bulk-options-container .ur-setting-textarea, .ur-toggle-content .ur-general-setting.ur-setting-select > .ur-bulk-options-container .ur-setting-textarea {
+  margin-top: 10px;
+  margin-bottom: 12px;
+  padding: 0;
+}
+
+.user-registration-global-settings--field #select-smart-tags {
+  color: #2271b1;
+  border-color: #2271b1;
+  height: 30px;
+  text-align: center;
+  line-height: 18px;
+  width: 30%;
+}
+
+.user-registration-form-setting-info {
+  margin: 8px 0;
+  padding: 4px 12px;
+  border-right: 4px solid #475bb2;
+}
+
+.ur-page-title {
+  display: inline-block;
+  margin: 0 15px 0 0;
+  padding: 6px 0;
+  color: #222222;
+}
+
+#user-registration-pro-single-user-view {
+  display: flex;
+  max-width: 1280px;
+  margin: 50px auto;
+  padding: 24px;
+  border-radius: 7px;
+  background: #ffffff;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar {
+  padding: 0 0 0 30px;
+  max-width: 250px;
+  min-width: 250px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 24px;
+}
+@media (max-width: 991px) {
+  #user-registration-pro-single-user-view #user-registration-user-sidebar {
+    min-width: 200px;
+    padding-left: 20px;
+  }
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box {
+  width: 100%;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box .box-title {
+  border-bottom: 1px solid #e1e1e1;
+  padding: 0 0 12px;
+  margin: 0 0 12px;
+  color: #222;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 130%;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box .user-profile .user-avatar {
+  text-align: center;
+  margin-bottom: 12px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box .user-profile .user-avatar img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  margin: 0 auto;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box .user-profile .user-login {
+  color: #222222;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: normal;
+  margin: 0;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul {
+  margin: 0;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li {
+  margin-bottom: 0;
+  padding: 12px 0 12px 26px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li svg {
+  width: 18px;
+  height: 18px;
+  padding-top: 1px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li svg path {
+  fill: #383838;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li p {
+  margin: 0;
+  color: #6b6b6b;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 150%;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li p span:last-child {
+  font-weight: 500;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li p span:last-child:not(.user-registration-user-status-approved) {
+  color: #383838;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) {
+  padding: 0;
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  z-index: 1;
+  border-radius: 3px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a {
+  padding: 12px 0 12px 26px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  border-radius: 3px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a::before {
+  content: "";
+  background: #edeff7;
+  position: absolute;
+  width: 24px;
+  height: 100%;
+  right: -12px;
+  top: 0;
+  opacity: 0;
+  z-index: -1;
+  border-radius: 0 3px 3px 0;
+  transition: all 0.2s ease-in-out;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a:focus {
+  box-shadow: none;
+  outline: none;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a:hover {
+  background: #edeff7;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a:hover::before {
+  opacity: 1;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a:hover svg path {
+  fill: #475bb2;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a:hover p {
+  color: #475bb2;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box .user-login {
+  text-align: center;
+  font-weight: bold;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-user-actions li img {
+  width: 12px;
+  height: 12px;
+  margin-left: 5px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-extra-details td img.menu-icon {
+  width: 12px;
+  height: 12px;
+  margin-left: 5px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar table tr {
+  margin: 5px 0;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar table th {
+  text-align: right;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar table #user-registration-user-extra-detail-user_status span {
+  font-weight: 600;
+}
+#user-registration-pro-single-user-view .user-registration-user-body {
+  flex-grow: 4;
+  padding-right: 25px;
+  border-right: 1px solid #e1e1e1;
+}
+#user-registration-pro-single-user-view .user-registration-user-body .user-registration-user-form-details {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+@media (max-width: 767px) {
+  #user-registration-pro-single-user-view .user-registration-user-body .user-registration-user-form-details {
+    flex-direction: column;
+  }
+}
+#user-registration-pro-single-user-view .user-registration-user-body .user-registration-user-form-details .user-registration-user-row-details {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+#user-registration-pro-single-user-view .user-registration-user-body .user-registration-user-form-details .user-registration-user-row-details .single-field {
+  padding: 10px;
+  width: 50%;
+  box-sizing: border-box;
+}
+@media (max-width: 767px) {
+  #user-registration-pro-single-user-view .user-registration-user-body .user-registration-user-form-details .user-registration-user-row-details .single-field {
+    width: 100%;
+  }
+}
+#user-registration-pro-single-user-view .user-registration-user-body .user-registration-user-form-details .user-registration-user-row-details .single-field .single-field__label {
+  font-size: 14px;
+  color: #222;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+#user-registration-pro-single-user-view .user-registration-user-body .user-registration-user-form-details .user-registration-user-row-details .single-field input {
+  width: 100%;
+  min-height: 36px;
+  padding-right: 10px;
+  padding-left: 10px;
+  border-color: #d3d3d3;
+}
+#user-registration-pro-single-user-view .user-registration-user-body .user-registration-user-form-details .user-registration-user-row-details .single-field input:disabled {
+  opacity: 0.5;
+  color: #000000;
+  background: #f4f4f4;
+  cursor: not-allowed;
+}
+#user-registration-pro-single-user-view .user-registration-user-body .user-registration-user-form-details .user-registration-user-row-details .single-field .urfu-no-files-found-message {
+  margin: 0;
+  padding: 7px 10px;
+  opacity: 0.5;
+  background: #f4f4f4;
+  cursor: not-allowed;
+  border: 1px solid #d3d3d3;
+}
+#user-registration-pro-single-user-view .user-registration-user-body .user-registration-user-form-details .user-registration-user-row-details .single-field textarea {
+  width: 100%;
+}
+#user-registration-pro-single-user-view #user-registration-user-details {
+  border-right: 1px solid #cccccc;
+}
+#user-registration-pro-single-user-view #user-registration-user-details .ur-detail-image img {
+  max-width: 200px;
+}
+#user-registration-pro-single-user-view #user-registration-user-details .ur-info-wrap table tr th,
+#user-registration-pro-single-user-view #user-registration-user-details .ur-info-wrap table tr td {
+  padding: 5px;
+}
+#user-registration-pro-single-user-view #user-registration-user-details .ur-info-wrap table tr th {
+  min-width: 150px;
+  text-align: right;
+}
+
+.user-registration-membership_page_user-registration-users #wpbody-content #message {
+  display: none !important;
+}
+.user-registration-membership_page_user-registration-users #wpbody-content .notice:not(.ur-users-notice) {
+  display: none !important;
+  visibility: hidden;
+}
+
+.user-registration-user-status-denied {
+  color: #f25656;
+}
+
+.user-registration-user-status-approved {
+  color: #4cc741;
+}
+
+.user-registration-user-status-disabled {
+  color: #f25656 !important;
+}
+
+.user-registration-user-status-pending {
+  color: #ee9936 !important;
+}
+
+.user-registration-membership_page_user-registration-users #wpcontent {
+  margin-left: 20px;
+}
+@media (max-width: 782px) {
+  .user-registration-membership_page_user-registration-users #wpcontent {
+    padding-right: 15px;
+    margin-left: 15px;
+  }
+}
+.user-registration-membership_page_user-registration-users #wpbody-content {
+  position: relative;
+}
+@media (max-width: 782px) {
+  .user-registration-membership_page_user-registration-users #wpbody-content #screen-meta-links {
+    margin-bottom: 0;
+  }
+}
+.user-registration-membership_page_user-registration-users #wpbody-content .notice {
+  position: absolute;
+  margin: 0;
+  border-radius: 3px;
+  background: #15b34b;
+  padding: 12px 20px 12px 16px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  right: 50%;
+  transform: translateX(50%);
+  top: 36px;
+}
+.user-registration-membership_page_user-registration-users #wpbody-content .notice p {
+  margin: 0;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+}
+.user-registration-membership_page_user-registration-users #wpbody-content .notice-dismiss {
+  position: unset;
+  padding: 0;
+}
+.user-registration-membership_page_user-registration-users #wpbody-content .notice-dismiss:focus {
+  box-shadow: none;
+}
+.user-registration-membership_page_user-registration-users #wpbody-content .notice-dismiss::before {
+  color: #ffffff;
+  font-size: 18px;
+  transition: all 0.3s ease-in-out;
+}
+.user-registration-membership_page_user-registration-users #wpbody-content .notice-dismiss:hover::before {
+  color: #e5e5e5;
+}
+.user-registration-membership_page_user-registration-users .swal2-popup {
+  padding: 0;
+}
+.user-registration-membership_page_user-registration-users .swal2-header {
+  padding: 20px 20px 0;
+  border-bottom: 0;
+  margin-bottom: 16px;
+}
+.user-registration-membership_page_user-registration-users .swal2-title {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  text-align: right;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 120%;
+  padding-bottom: 16px;
+  width: 100%;
+  margin-bottom: 0;
+  color: #222222;
+}
+.user-registration-membership_page_user-registration-users .swal2-title img {
+  width: 30px;
+  height: 30px;
+  background: #fff4f4;
+  padding: 6px;
+  box-sizing: border-box;
+  border-radius: 50%;
+}
+.user-registration-membership_page_user-registration-users .swal2-content {
+  padding-right: 20px;
+  padding-left: 20px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.user-registration-membership_page_user-registration-users .swal2-content form {
+  margin-top: 20px;
+}
+.user-registration-membership_page_user-registration-users .swal2-content p {
+  margin: 0;
+}
+.user-registration-membership_page_user-registration-users .swal2-content p#html_1 {
+  margin: 0 0 14px;
+  color: #383838;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 24px;
+}
+.user-registration-membership_page_user-registration-users .swal2-content p#html_2 {
+  color: #f25656;
+  border-radius: 3px;
+  padding: 10px 14px 10px 18px;
+  background: #fff4f4;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 23px;
+}
+.user-registration-membership_page_user-registration-users .swal2-content a {
+  font-size: 12px;
+}
+.user-registration-membership_page_user-registration-users .swal2-actions {
+  border-radius: 0 0 5px 5px;
+  border-top: 0.5px solid #e1e1e1;
+  background: #fdfdfd;
+  padding: 18px 20px;
+  justify-content: flex-start;
+  flex-direction: row-reverse;
+  gap: 12px;
+  margin-top: 0;
+}
+.user-registration-membership_page_user-registration-users .swal2-actions button {
+  transition: all 0.3s ease-in-out;
+}
+.user-registration-membership_page_user-registration-users .swal2-actions button:focus {
+  box-shadow: none;
+}
+.user-registration-membership_page_user-registration-users .swal2-actions button.swal2-confirm {
+  border-radius: 3px;
+  background: #475bb2;
+  padding: 10px 16px;
+  color: #ffffff;
+  margin: 0;
+}
+.user-registration-membership_page_user-registration-users .swal2-actions button.swal2-cancel {
+  border-radius: 3px;
+  background: #e9e9e9;
+  padding: 10px 16px;
+  color: #6b6b6b;
+  margin: 0;
+}
+.user-registration-membership_page_user-registration-users #show-settings-link {
+  display: none;
+}
+
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-payment-details #user-registration-user-payment-detail-ur_payment_items {
+  flex-direction: column;
+  padding-left: 0;
+  gap: 10px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-payment-details #user-registration-user-payment-detail-ur_payment_items .ur-user-payment-items {
+  background: #f7f7f7;
+  padding: 0 16px;
+  border-radius: 4px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-payment-details #user-registration-user-payment-detail-ur_payment_items .ur-user-payment-items > li {
+  padding-left: 0;
+  padding-bottom: 0;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-payment-details #user-registration-user-payment-detail-ur_payment_items .ur-user-payment-items > li:last-child {
+  padding-bottom: 12px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-payment-details #user-registration-user-payment-detail-ur_payment_items .ur-user-payment-items > li:has(.ur-user-payment-multiple-choice) {
+  flex-direction: column;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-payment-details #user-registration-user-payment-detail-ur_payment_items .ur-user-payment-items > li > p span {
+  font-weight: 400;
+  color: #6b6b6b;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-payment-details #user-registration-user-payment-detail-ur_payment_items .ur-user-payment-items > li .ur-user-payment-multiple-choice {
+  padding-right: 12px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-payment-details #user-registration-user-payment-detail-ur_payment_items .ur-user-payment-items > li .ur-user-payment-multiple-choice > li {
+  padding: 0;
+  padding-bottom: 10px;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-payment-details #user-registration-user-payment-detail-ur_payment_items .ur-user-payment-items > li .ur-user-payment-multiple-choice > li:last-child {
+  padding-bottom: 0;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar #user-registration-user-view-payment-details #user-registration-user-payment-detail-ur_payment_items .ur-user-payment-items > li .ur-user-payment-multiple-choice > li p span:last-child {
+  font-weight: 400;
+  color: #6b6b6b;
+}
+
+.edit-user-save-btn-container {
+  display: flex;
+  min-width: 100%;
+  flex-direction: row-reverse;
+}
+
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a.active {
+  background: #505bbf;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a.active p, #user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a.active path, #user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a.active path:hover {
+  color: white;
+  fill: white;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a.active:before {
+  opacity: 1;
+  background: #505bbf;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a.active:hover {
+  color: white;
+}
+#user-registration-pro-single-user-view #user-registration-user-sidebar .sidebar-box ul li:has(a) a.active:hover svg path {
+  fill: white;
+}
+
+#user-registration-edit-user-body .ur-form-grid .ur-repeater-row {
+  flex-direction: column;
+  border: none !important;
+}
+#user-registration-edit-user-body .ur-form-grid .ur-repeater-row .ur-repeater-label {
+  background: none;
+  padding: 10px;
+}
+#user-registration-edit-user-body .ur-form-grid .ur-repeater-row .ur-repeater-label label {
+  font-size: x-large;
+}
+#user-registration-edit-user-body .ur-field-item .input-wrapper label.error:before {
+  content: "\f348";
+  display: inline-block;
+  vertical-align: middle;
+  font-family: "Dashicons";
+  font-size: calc(100% + 10px);
+  margin-left: 0.875rem;
+}
+#user-registration-edit-user-body .ur-field-item .input-wrapper input[type=text] {
+  margin-bottom: 0;
+}
+#user-registration-edit-user-body .ur-field-item .input-wrapper button.set-new-pass-btn {
+  min-height: 36px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+#user-registration-edit-user-body .user-registration-help-tip {
+  font-size: 14px;
+}
+#user-registration-edit-user-body .input-wrapper label.error {
+  border-top-color: #ff4f55;
+  background: rgba(255, 79, 85, 0.1);
+  color: #ff030b;
+}
+#user-registration-edit-user-body .input-wrapper label {
+  display: block;
+  margin: 0 0 10px;
+  padding: 10px 15px;
+  background-color: #f0f1f9;
+  color: #4c5477;
+  border-top: 3px solid #475bb2;
+  list-style: none outside;
+  width: auto;
+  word-wrap: break-word;
+  line-height: 1.25;
+  text-transform: none;
+  font-size: 14px;
+}
+#user-registration-edit-user-body .ur-form-grid .ur-field-item.field-section_title h3 {
+  font-size: x-large;
+  margin-bottom: 51px;
+}
+#user-registration-edit-user-body .ur-form-grid .ur-field-item label {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+#user-registration-edit-user-body .ur-form-grid .ur-field-item label .required {
+  text-decoration: none;
+}
+#user-registration-edit-user-body .hide-show-password {
+  position: absolute;
+  top: 0;
+  left: 10px;
+  cursor: pointer;
+}
+
+.field-custom_url label:last-child.error {
+  border-top-color: #ff4f55;
+  background: rgba(255, 79, 85, 0.1);
+  color: #ff030b;
+}
+.field-custom_url label:last-child.error:before {
+  content: "\f348";
+  display: inline-block;
+  vertical-align: middle;
+  font-family: "Dashicons";
+  font-size: calc(100% + 10px);
+  margin-left: 0.875rem;
+}
+.field-custom_url label:last-child {
+  display: block;
+  margin: 0 0 10px;
+  padding: 10px 15px;
+  background-color: #f0f1f9;
+  border-top: 3px solid #475bb2;
+  list-style: none outside;
+  width: auto;
+  word-wrap: break-word;
+  line-height: 1.25;
+  text-transform: none;
+  font-size: 14px;
+}
+
+.email-updated {
+  display: block;
+  margin: 0 0 10px;
+  padding: 10px 15px;
+  background-color: #f0f1f9;
+  color: #4c5477;
+  border-top: 3px solid #475bb2;
+  list-style: none outside;
+  width: auto;
+  word-wrap: break-word;
+  line-height: 1.25;
+  text-transform: none;
+  font-size: 14px;
+}
+
+#user-registration-pro-single-user-view .ur-frontend-form {
+  width: 100%;
+}
+
+.et-db #et-boc .et-l .et-fb-modules-list ul > li {
+  position: relative;
+}
+.et-db #et-boc .et-l .et-fb-modules-list ul > li.urm-popup:before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  background-image: url("./../images/pro/blocks/popup.svg");
+}
+.et-db #et-boc .et-l .et-fb-modules-list ul > li.urm-download-pdf-button:before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  background-image: url("./../images/pro/blocks/pdf.svg");
+}
+.et-db #et-boc .et-l .et-fb-modules-list ul > li.urm-frontend-listing:before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  background-image: url("./../images/pro/blocks/frontend-listing.svg");
+}
+.et-db #et-boc .et-l .et-fb-modules-list ul > li.urm-view-profile-details:before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  background-image: url("./../images/pro/blocks/view-profile-details.svg");
+}

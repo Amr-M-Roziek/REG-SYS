@@ -1,0 +1,15 @@
+.coupon-active {
+  color: green; }
+
+.coupon-inactive {
+  color: red; }
+
+.no-items td {
+  background: white; }
+.no-items .empty-list-table-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; }
+  .no-items .empty-list-table-container img {
+    max-width: 400px; }

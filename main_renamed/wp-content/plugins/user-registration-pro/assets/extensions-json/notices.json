@@ -1,0 +1,64 @@
+{
+  "notices": [
+    {
+      "id": "5",
+      "type": "important",
+      "status": "active",
+      "priority": "1",
+      "title": "!Important Announcement",
+      "message_content": "User Registration - Content Restriction",
+      "buttons": [
+        {
+          "title": "Sure, I'd love to!",
+          "icon": "dashicons-testimonial",
+          "link": "https://wpuserregistration.com/features/content-restriction/?utm_source=dashboard-all-features&utm_medium=card-documentation-link",
+          "class": "button-primary",
+          "target": "_blank"
+        },
+        {
+          "title": "Maybe later",
+          "icon": "dashicons-dismiss",
+          "link": "#",
+          "class": "button-secondary notice-dismiss notice-dismiss-temporarily",
+          "target": ""
+        },
+        {
+          "title": "I have a query",
+          "icon": "dashicons-testimonial",
+          "link": "https://wpuserregistration.com/support",
+          "class": "button-secondary notice-have-query",
+          "target": "_blank"
+        }
+      ],
+      "permanent_dismiss" : true,
+      "reopen_days": "1",
+      "reopen_times": "3",
+      "conditions_to_display": [
+        {
+          "operator": "OR",
+          "wp_version": "<6.6",
+          "php_version": ">8.3",
+          "products": [
+            {
+              "operator": "AND",
+              "user_count": "<20",
+              "activation_days": "7",
+              "plugins": [
+                {
+                  "operator": "AND",
+                  "user-registration-pro/user-registration.php": ">4.1.4",
+                  "woocommerce/woocommerce.php": ">8.0.0"
+                }
+              ],
+              "themes": [
+                {
+                  "twentytwentyone": "=2.1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

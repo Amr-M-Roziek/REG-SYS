@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schemas.wp.org/block-json/1.1",
+  "apiVersion": 3,
+  "name": "user-registration/frontend-listing",
+  "version": "1.0.0",
+  "title": "Frontend Listing",
+  "category": "user-registration",
+  "description": "The block gives the listing of users.",
+  "keywords": ["user registration frontend listing", "frontend listing"],
+  "textdomain": "user-registration",
+  "example": {
+    "attributes": {}
+  },
+  "supports": {
+    "className": false,
+    "customClassName": false,
+    "reusable": false
+  },
+  "attributes": {
+    "id": {
+      "type": "string"
+    }
+  },
+  "editorScript": "user-registration-blocks-editor",
+  "editorStyle": "user-registration-blocks-editor"
+}

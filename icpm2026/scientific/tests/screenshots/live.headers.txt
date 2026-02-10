@@ -1,0 +1,12 @@
+HTTP/1.1 302 Found
+Host: localhost:8000
+Date: Sun, 14 Dec 2025 19:26:46 GMT
+Connection: close
+X-Powered-By: PHP/8.2.12
+Expires: Thu, 19 Nov 1981 08:52:00 GMT
+Cache-Control: no-store, no-cache, must-revalidate
+Pragma: no-cache
+Set-Cookie: PHPSESSID=qnlg5e0kh4966r33ahvmn1bfkg; path=/
+location:http://localhost:8000/icpm2026/poster26/welcome.php
+Content-type: text/html; charset=UTF-8
+
