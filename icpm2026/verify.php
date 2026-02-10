@@ -16,6 +16,40 @@ $user = null;
 if (!function_exists('fetchUser')) {
     function fetchUser($con, $dbName, $userId) {
         $result = null;
+        
+        // 0. Special Optimization: For regsys_participant, try dedicated connection FIRST
+        // This avoids permission issues when switching from regsys_reg connection
+        if ($dbName === 'regsys_participant') {
+             $envHost = getenv('DB_HOST');
+             $host = $envHost ? $envHost : 'localhost';
+             $targetUser = 'regsys_part';
+             $targetPass = 'regsys@2025';
+             
+             // Handle local dev environment
+             $whitelist = array('127.0.0.1','::1','localhost');
+             if (in_array($_SERVER['SERVER_NAME'] ?? 'localhost', $whitelist)) {
+                 $targetUser = 'root';
+                 $targetPass = '';
+                 $host = '127.0.0.1';
+             }
+
+             try {
+                 $con2 = @mysqli_connect($host, $targetUser, $targetPass, $dbName);
+                 if ($con2) {
+                     mysqli_set_charset($con2, 'utf8mb4');
+                     $q = mysqli_query($con2, "SELECT * FROM users WHERE id='$userId'");
+                     if ($q && mysqli_num_rows($q) > 0) {
+                         $result = mysqli_fetch_assoc($q);
+                     }
+                     mysqli_close($con2);
+                     
+                     if ($result) return $result; // Return immediately if found
+                 }
+             } catch (Exception $e) {
+                 // Fall through to standard logic
+             }
+        }
+
         try {
             // 1. Try switching database on existing connection
             // We use @ to suppress errors if the user doesn't have permission to switch DB
@@ -105,7 +139,14 @@ if ($id > 0 && !empty($hash)) {
 
         if ($user) {
             $isValid = true;
+        } else {
+            echo "<!-- Hash Matched, but User Not Found in any DB -->";
         }
+    } else {
+        // Debugging (remove in production if sensitive)
+        // echo "<!-- Hash Mismatch. Received: $hash, Expected: " . md5($id . $secret_salt) . " -->";
+        // Safe debug:
+        echo "<!-- Hash Verification Failed -->";
     }
 }
 
