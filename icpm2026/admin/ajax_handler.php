@@ -325,7 +325,8 @@ if ($action == 'save_template') {
     $template = mysqli_fetch_assoc($query);
     
     if ($template) {
-        // HOTFIX: Replace hardcoded "Speaker" with dynamic category variable
+        // HOTFIX REMOVED: Do not modify template content dynamically
+        /*
         $data = json_decode($template['data'], true);
         if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
             $modified = false;
@@ -344,6 +345,7 @@ if ($action == 'save_template') {
                 $template['data'] = json_encode($data);
             }
         }
+        */
         echo json_encode(['status' => 'success', 'data' => $template]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Template not found']);
@@ -355,7 +357,8 @@ if ($action == 'save_template') {
     $template = mysqli_fetch_assoc($query);
     
     if ($template) {
-        // HOTFIX: Replace hardcoded "Speaker" with dynamic category variable
+        // HOTFIX REMOVED: Do not modify template content dynamically
+        /*
         $data = json_decode($template['data'], true);
         if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
             $modified = false;
@@ -374,6 +377,7 @@ if ($action == 'save_template') {
                 $template['data'] = json_encode($data);
             }
         }
+        */
         echo json_encode(['status' => 'success', 'data' => $template]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Template not found']);
@@ -382,42 +386,17 @@ if ($action == 'save_template') {
 } elseif ($action == 'get_default_template') {
     // Try to find 'Final' first, then 'Default'
     $query = mysqli_query($con, "SELECT * FROM certificate_templates WHERE name='Final' ORDER BY id DESC LIMIT 1");
-    if (mysqli_num_rows($query) == 0) {
+    
+    if (!$query || mysqli_num_rows($query) == 0) {
         $query = mysqli_query($con, "SELECT * FROM certificate_templates WHERE name='Default' ORDER BY id DESC LIMIT 1");
     }
     
-    $template = mysqli_fetch_assoc($query);
-    
-    if ($template) {
-        // HOTFIX: Replace hardcoded "Speaker" with dynamic category variable
-        $data = json_decode($template['data'], true);
-        if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
-            $modified = false;
-            foreach ($data as &$element) {
-                // HOTFIX: Ensure "Speaker" or existing "{category}" variable gets the static prefix
-                $content = strip_tags($element['content'] ?? '');
-                $isCategoryVar = (isset($element['dataVariable']) && $element['dataVariable'] === 'category');
-                $isSpeakerText = (stripos($content, 'Speaker') !== false);
-                
-                if ($isCategoryVar || $isSpeakerText) {
-                    // Prevent double prefixing if already applied
-                    if (stripos($content, 'In Gratitude') === false) {
-                        $element['content'] = 'In Gratitude for the outstanding Contribution as {category}';
-                        $element['dataVariable'] = 'category';
-                        $modified = true;
-                    }
-                }
-            }
-            if ($modified) {
-                $template['data'] = json_encode($data);
-            }
-        }
-        
+    if ($query && mysqli_num_rows($query) > 0) {
+        $template = mysqli_fetch_assoc($query);
         echo json_encode(['status' => 'success', 'data' => $template]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Default template not found']);
     }
-
 } elseif ($action == 'update_certificate_status') {
     $uid = isset($_POST['user_id']) ? intval($_POST['user_id']) : intval($_POST['uid']);
     $status = intval($_POST['status']);

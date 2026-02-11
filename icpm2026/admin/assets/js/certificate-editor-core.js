@@ -606,7 +606,12 @@ function loadDefaultTemplate() {
             applyState(elements);
         } else {
             console.log("No default template found.");
+            alert("Could not load any certificate template. Please contact support.");
         }
+    })
+    .catch(e => {
+        console.error("Error loading default template:", e);
+        alert("Error loading default template.");
     });
 }
 
