@@ -57,9 +57,8 @@ if (!$isParticipant && !empty($category)) {
 // Verification Logic
 $secret_salt = 'ICPM2026_Secure_Salt';
 $hash = md5($user['id'] . $secret_salt);
-// Determine protocol (http or https)
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-$verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id=" . $user['id'] . "&hash=" . $hash;
+// Force regsys.cloud domain for verification
+$verificationLink = "https://regsys.cloud/icpm2026/verify.php?id=" . $user['id'] . "&hash=" . $hash;
 ?>
 <script>
     // Global variables for dynamic data re-injection
