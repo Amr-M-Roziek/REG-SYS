@@ -504,6 +504,8 @@ if (isset($_POST['action'])) {
         $from = $_POST['from'] ?? '';
         $to = $_POST['to'] ?? '';
         $group = $_POST['user_group'] ?? '';
+        $source = $_POST['source'] ?? '';
+        $userFilter = $_POST['user_filter'] ?? '';
 
         $sql = "SELECT e.*, s.name AS session_name FROM attendance_events e LEFT JOIN attendance_sessions s ON e.session_id = s.id WHERE 1=1";
         $params = [];
@@ -518,10 +520,22 @@ if (isset($_POST['action'])) {
             $types .= 's';
             $params[] = $module;
         }
+        if ($userFilter !== '') {
+            $sql .= " AND (e.user_name LIKE ? OR e.user_email LIKE ? OR e.user_ref LIKE ?)";
+            $types .= 'sss';
+            $params[] = '%' . $userFilter . '%';
+            $params[] = '%' . $userFilter . '%';
+            $params[] = '%' . $userFilter . '%';
+        }
         if ($group !== '') {
             $sql .= " AND e.user_group LIKE ?";
             $types .= 's';
             $params[] = '%' . $group . '%';
+        }
+        if ($source !== '') {
+            $sql .= " AND e.source LIKE ?";
+            $types .= 's';
+            $params[] = '%' . $source . '%';
         }
         if ($from !== '') {
             $sql .= " AND DATE(e.event_time) >= ?";
@@ -855,7 +869,7 @@ if ($sessionsRes) {
                             </div>
 
                             <div class="tab-pane" id="reports">
-                                <div class="row mb" style="margin-top:20px;margin-bottom:20px;">
+                                <div class="row mb" style="margin-top:20px;">
                                     <div class="col-md-3">
                                         <select class="form-control" id="report-session">
                                             <option value="">All sessions</option>
@@ -864,7 +878,7 @@ if ($sessionsRes) {
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-3">
                                         <select class="form-control" id="report-module">
                                             <option value="">All modules</option>
                                             <?php foreach ($modules as $key => $label): ?>
@@ -872,19 +886,25 @@ if ($sessionsRes) {
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
-                                    <div class="col-md-2">
-                                        <input type="date" class="form-control" id="report-from">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <input type="date" class="form-control" id="report-to">
+                                    <div class="col-md-3">
+                                        <input type="date" class="form-control" id="report-from" placeholder="From Date">
                                     </div>
                                     <div class="col-md-3">
-                                        <div class="input-group">
-                                            <input type="text" class="form-control" id="report-group" placeholder="User group">
-                                            <span class="input-group-btn">
-                                                <button class="btn btn-primary" id="btn-filter-report">Filter</button>
-                                            </span>
-                                        </div>
+                                        <input type="date" class="form-control" id="report-to" placeholder="To Date">
+                                    </div>
+                                </div>
+                                <div class="row mb" style="margin-bottom:20px;">
+                                    <div class="col-md-3">
+                                        <input type="text" class="form-control" id="report-user" placeholder="User Name / Email / ID">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="text" class="form-control" id="report-group" placeholder="User group">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="text" class="form-control" id="report-source" placeholder="Source (e.g. Terminal)">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button class="btn btn-primary btn-block" id="btn-filter-report">Filter Reports</button>
                                     </div>
                                 </div>
 
@@ -1228,7 +1248,9 @@ $(document).ready(function () {
             module: $('#report-module').val(),
             from: $('#report-from').val(),
             to: $('#report-to').val(),
-            user_group: $('#report-group').val()
+            user_group: $('#report-group').val(),
+            source: $('#report-source').val(),
+            user_filter: $('#report-user').val()
         };
         $.post('attendance-dashboard.php', params, function (res) {
             if (res.status !== 'success') {

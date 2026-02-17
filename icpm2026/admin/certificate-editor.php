@@ -617,13 +617,25 @@ $verificationLink = "https://regsys.cloud/icpm2026/verify.php?id=" . $user['id']
 </div>
 
 <script src="assets/js/jquery.js"></script>
-<script src="assets/js/certificate-editor-core.js"></script>
+<script src="assets/js/certificate-editor-core.js?v=<?php echo time(); ?>"></script>
 
 <script>
     // Load initial template if exists, or default
     $(document).ready(function() {
-        // Try to load 'Final-CME' by default, else 'Final', else 'Default'
-        loadTemplateByName('Final-CME');
+        // Check for template_id in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const templateId = urlParams.get('template_id');
+        
+        console.log("Certificate Editor Loaded. Template ID:", templateId);
+
+        if (templateId) {
+            console.log("Loading specific template:", templateId);
+            loadTemplate(templateId);
+        } else {
+            console.log("No template ID, loading default.");
+            // Try to load 'Final-CME' by default, else 'Final', else 'Default'
+            loadTemplateByName('Final-CME');
+        }
     });
 </script>
 

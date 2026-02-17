@@ -49,49 +49,59 @@ if (isset($_GET['ajax'])) {
             $q = $m[1];
         }
         $categoryFilter = isset($_GET['category']) ? $_GET['category'] : '';
+        $attendanceFilter = isset($_GET['attendance']) ? $_GET['attendance'] : '';
         $limitArg = isset($_GET['limit']) ? $_GET['limit'] : 100;
         $limit = ($limitArg === 'ALL') ? 1000000 : intval($limitArg);
         $pattern = '%' . $q . '%';
+        
         $categoryClause = '';
         if ($categoryFilter !== '') {
             $safeCategory = mysqli_real_escape_string($con, $categoryFilter);
-            $categoryClause = " AND category COLLATE utf8mb4_bin LIKE '%" . $safeCategory . "%'";
+            $categoryClause = " AND users.category COLLATE utf8mb4_bin LIKE '%" . $safeCategory . "%'";
         }
-        $sql = "SELECT * FROM users WHERE
-        (CAST(id AS CHAR) COLLATE utf8mb4_bin LIKE ? OR
-        fname COLLATE utf8mb4_bin LIKE ? OR
-        nationality COLLATE utf8mb4_bin LIKE ? OR
-        coauth1name COLLATE utf8mb4_bin LIKE ? OR
-        coauth1nationality COLLATE utf8mb4_bin LIKE ? OR
-        coauth2name COLLATE utf8mb4_bin LIKE ? OR
-        coauth2nationality COLLATE utf8mb4_bin LIKE ? OR
-        coauth3name COLLATE utf8mb4_bin LIKE ? OR
-        coauth3nationality COLLATE utf8mb4_bin LIKE ? OR
-        coauth4name COLLATE utf8mb4_bin LIKE ? OR
-        coauth4nationality COLLATE utf8mb4_bin LIKE ? OR
-        coauth5name COLLATE utf8mb4_bin LIKE ? OR
-        coauth5nationality COLLATE utf8mb4_bin LIKE ? OR
-        coauth1email COLLATE utf8mb4_bin LIKE ? OR
-        coauth2email COLLATE utf8mb4_bin LIKE ? OR
-        coauth3email COLLATE utf8mb4_bin LIKE ? OR
-        coauth4email COLLATE utf8mb4_bin LIKE ? OR
-        coauth5email COLLATE utf8mb4_bin LIKE ? OR
-        email COLLATE utf8mb4_bin LIKE ? OR
-        profession COLLATE utf8mb4_bin LIKE ? OR
-        organization COLLATE utf8mb4_bin LIKE ? OR
-        category COLLATE utf8mb4_bin LIKE ? OR
-        password COLLATE utf8mb4_bin LIKE ? OR
-        contactno COLLATE utf8mb4_bin LIKE ? OR
-        userip COLLATE utf8mb4_bin LIKE ? OR
-        companyref COLLATE utf8mb4_bin LIKE ? OR
-        paypalref COLLATE utf8mb4_bin LIKE ? OR
-        supervisor_name COLLATE utf8mb4_bin LIKE ? OR
-        supervisor_nationality COLLATE utf8mb4_bin LIKE ? OR
-        supervisor_contact COLLATE utf8mb4_bin LIKE ? OR
-        supervisor_email COLLATE utf8mb4_bin LIKE ? OR
-        postertitle COLLATE utf8mb4_bin LIKE ?)
-        AND (source_system='poster' OR source_system='both')" . $categoryClause . "
-        ORDER BY id ASC LIMIT $limit";
+
+        $attendanceClause = '';
+        if ($attendanceFilter === 'attended') {
+            $attendanceClause = " AND (attendance.status = 'present' OR attendance.status = 'late')";
+        } elseif ($attendanceFilter === 'not_attended') {
+            $attendanceClause = " AND (attendance.status = 'absent' OR attendance.status IS NULL)";
+        }
+
+        $sql = "SELECT users.*, attendance.status as attendance_status FROM users LEFT JOIN attendance ON users.id = attendance.user_id WHERE
+        (CAST(users.id AS CHAR) COLLATE utf8mb4_bin LIKE ? OR
+        users.fname COLLATE utf8mb4_bin LIKE ? OR
+        users.nationality COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth1name COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth1nationality COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth2name COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth2nationality COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth3name COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth3nationality COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth4name COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth4nationality COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth5name COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth5nationality COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth1email COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth2email COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth3email COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth4email COLLATE utf8mb4_bin LIKE ? OR
+        users.coauth5email COLLATE utf8mb4_bin LIKE ? OR
+        users.email COLLATE utf8mb4_bin LIKE ? OR
+        users.profession COLLATE utf8mb4_bin LIKE ? OR
+        users.organization COLLATE utf8mb4_bin LIKE ? OR
+        users.category COLLATE utf8mb4_bin LIKE ? OR
+        users.password COLLATE utf8mb4_bin LIKE ? OR
+        users.contactno COLLATE utf8mb4_bin LIKE ? OR
+        users.userip COLLATE utf8mb4_bin LIKE ? OR
+        users.companyref COLLATE utf8mb4_bin LIKE ? OR
+        users.paypalref COLLATE utf8mb4_bin LIKE ? OR
+        users.supervisor_name COLLATE utf8mb4_bin LIKE ? OR
+        users.supervisor_nationality COLLATE utf8mb4_bin LIKE ? OR
+        users.supervisor_contact COLLATE utf8mb4_bin LIKE ? OR
+        users.supervisor_email COLLATE utf8mb4_bin LIKE ? OR
+        users.postertitle COLLATE utf8mb4_bin LIKE ?)
+        AND (users.source_system='poster' OR users.source_system='both')" . $categoryClause . $attendanceClause . "
+        ORDER BY users.id ASC LIMIT $limit";
     $stmt = mysqli_prepare($con, $sql);
     if ($stmt) {
         mysqli_stmt_bind_param(
@@ -154,6 +164,19 @@ if (isset($_GET['ajax'])) {
             echo "<td>" . $wrap($row['companyref'], $q) . "</td>";
             echo "<td>" . $wrap($row['posting_date'], $q) . "</td>";
             
+            $attStatus = isset($row['attendance_status']) ? $row['attendance_status'] : '';
+            if (empty($attStatus)) {
+                $attDisplay = 'Not Attended';
+                $attStyle = 'color:red;';
+            } elseif ($attStatus == 'present' || $attStatus == 'late') {
+                $attDisplay = ucfirst($attStatus);
+                $attStyle = 'color:green; font-weight:bold;';
+            } else {
+                $attDisplay = ucfirst($attStatus);
+                $attStyle = 'color:orange;';
+            }
+            echo "<td style='" . $attStyle . "'>" . $attDisplay . "</td>";
+
             echo "<td>";
             echo "<select class='form-control input-sm' onchange='updateCertificateStatus(" . $row['id'] . ", this.value)' style='width: 100px; " . ($certStatus == 1 ? "border-color: #5cb85c; border-width: 2px;" : "") . "'>";
             echo "<option value='0' " . ($certStatus == 0 ? "selected" : "") . ">Pending</option>";
@@ -384,7 +407,7 @@ if (isset($_GET['export_excel'])) {
     $headers[] = 'Company Ref';
     $headers[] = 'Posting Date';
     fputcsv($output, $headers);
-    $query = "SELECT * FROM users WHERE (source_system='poster' OR source_system='both')";
+    $query = "SELECT * FROM users WHERE (source_system='poster' OR source_system='both' OR source_system IS NULL OR source_system='')";
     if ($scope === 'visible') {
         if (!empty($idList)) {
             $idString = implode(',', $idList);
@@ -792,7 +815,14 @@ if ($catRes) {
                                   echo '<option value="' . htmlspecialchars($cat, ENT_QUOTES, 'UTF-8') . '" ' . $sel . '>' . htmlspecialchars($cat, ENT_QUOTES, 'UTF-8') . '</option>';
                               } ?>
                             </select>
-                            <button type="button" class="btn btn-default" id="clear-category" style="margin-left:5px;">Clear Filter</button>
+
+                            <label for="attendance-filter" style="margin-right:8px; margin-left: 15px;">Attendance:</label>
+                            <select id="attendance-filter" class="form-control" style="width:auto; display:inline-block;">
+                                <option value="">All</option>
+                                <option value="attended">Attended</option>
+                                <option value="not_attended">Not Attended</option>
+                            </select>
+                            <button type="button" class="btn btn-default" id="clear-filters" style="margin-left:5px;">Clear Filters</button>
                           </div>
                         </div>
                         <div class="col-sm-6 text-right">
@@ -878,6 +908,7 @@ if ($catRes) {
 
                                   <th>Company ref</th>
                                   <th>Reg. Date</th>
+                                  <th>Attendance</th>
                                   <th>Action</th>
                               </tr>
 
@@ -885,7 +916,7 @@ if ($catRes) {
 
                               <tbody>
 
-                              <?php $ret=mysqli_query($con,"select * from users WHERE (source_system='poster' OR source_system='both') ORDER BY id DESC");
+                              <?php $ret=mysqli_query($con,"SELECT users.*, attendance.status as attendance_status FROM users LEFT JOIN attendance ON users.id = attendance.user_id WHERE (source_system='poster' OR source_system='both' OR source_system IS NULL OR source_system='') ORDER BY users.id DESC");
                               $cnt=1;
                               $wrapInit = function($val, $short=false) {
                                   $txt = (string)$val;
@@ -931,6 +962,19 @@ if ($catRes) {
                                   echo "<td>" . $wrapInit($row['companyref']) . "</td>";
                                   echo "<td>" . $wrapInit($row['posting_date']) . "</td>";
                                   
+                                  $attStatus = isset($row['attendance_status']) ? $row['attendance_status'] : '';
+                                  if (empty($attStatus)) {
+                                      $attDisplay = 'Not Attended';
+                                      $attStyle = 'color:red;';
+                                  } elseif ($attStatus == 'present' || $attStatus == 'late') {
+                                      $attDisplay = ucfirst($attStatus);
+                                      $attStyle = 'color:green; font-weight:bold;';
+                                  } else {
+                                      $attDisplay = ucfirst($attStatus);
+                                      $attStyle = 'color:orange;';
+                                  }
+                                  echo "<td style='" . $attStyle . "'>" . $attDisplay . "</td>";
+
                                   echo "<td>";
                                   echo "<select class='form-control input-sm' onchange='updateCertificateStatus(" . $row['id'] . ", this.value)' style='width: 100px; " . ($certStatus == 1 ? "border-color: #5cb85c; border-width: 2px;" : "") . "'>";
                                   echo "<option value='0' " . ($certStatus == 0 ? "selected" : "") . ">Pending</option>";
@@ -1290,8 +1334,16 @@ if ($catRes) {
               return;
           }
           
+          // Get first selected user for preview context
+          var firstUserId = $('.user-checkbox:checked').first().val();
+          if (!firstUserId) {
+              alert('Please select at least one user to preview the certificate.');
+              return;
+          }
+
           var $container = $('#certificate-preview');
-          $container.html('<iframe id="preview-frame" src="certificate-editor.php?preview_template=' + tplId + '" style="width:100%; height:100%; border:none; pointer-events:none;"></iframe>');
+          // Use template_id and uid parameters to ensure correct loading
+          $container.html('<iframe id="preview-frame" src="certificate-editor.php?uid=' + firstUserId + '&template_id=' + tplId + '" style="width:100%; height:100%; border:none; pointer-events:none;"></iframe>');
           
           $('#preview-template-name').text($('#certificate-template option:selected').text());
           $('#preview-confirm-container').show();
@@ -1583,16 +1635,17 @@ if ($catRes) {
               }
           });
           
-          $('#category-filter, #rows-per-page').on('change', function() {
+          $('#category-filter, #attendance-filter, #rows-per-page').on('change', function() {
               var q = $('#users-search').val() || '';
               if (window.fetchRows) {
                   window.fetchRows(q);
               }
           });
           
-          $('#clear-category').on('click', function(e) {
+          $('#clear-filters').on('click', function(e) {
               e.preventDefault();
               $('#category-filter').val('');
+              $('#attendance-filter').val('');
               var q = $('#users-search').val() || '';
               if (window.fetchRows) {
                   window.fetchRows(q);
@@ -1738,7 +1791,7 @@ if ($catRes) {
           $.ajax({
             url: 'manage-users.php',
             method: 'GET',
-            data: { ajax: 1, search: q, category: $('#category-filter').val() || '', limit: $('#rows-per-page').val() || '100' },
+            data: { ajax: 1, search: q, category: $('#category-filter').val() || '', attendance: $('#attendance-filter').val() || '', limit: $('#rows-per-page').val() || '100' },
             success: function(html){
               $tbody.html(html);
               // Re-apply visibility after AJAX update

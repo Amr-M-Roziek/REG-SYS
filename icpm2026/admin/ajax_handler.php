@@ -384,15 +384,54 @@ if ($action == 'save_template') {
     }
 
 } elseif ($action == 'get_default_template') {
-    // Try to find 'Final' first, then 'Default'
-    $query = mysqli_query($con, "SELECT * FROM certificate_templates WHERE name='Final' ORDER BY id DESC LIMIT 1");
+    // Priority: 'Other_Certificates (2026-02-11 05:29:56)' -> 'Final' -> 'Default' -> First available
+    $targetTemplate = 'Other_Certificates (2026-02-11 05:29:56)';
+    $names = ["'$targetTemplate'", "'Final'", "'Default'"];
+    $namesStr = implode(',', $names);
     
-    if (!$query || mysqli_num_rows($query) == 0) {
-        $query = mysqli_query($con, "SELECT * FROM certificate_templates WHERE name='Default' ORDER BY id DESC LIMIT 1");
+    $query = mysqli_query($con, "SELECT * FROM certificate_templates WHERE name IN ($namesStr) ORDER BY FIELD(name, $namesStr) LIMIT 1");
+    $template = mysqli_fetch_assoc($query);
+    
+    if (!$template) {
+        // Fallback to any template
+        $query = mysqli_query($con, "SELECT * FROM certificate_templates ORDER BY id ASC LIMIT 1");
+        $template = mysqli_fetch_assoc($query);
     }
     
-    if ($query && mysqli_num_rows($query) > 0) {
-        $template = mysqli_fetch_assoc($query);
+    if ($template) {
+        // Apply on-the-fly fixes for specific broken templates
+        if ($template['name'] === $targetTemplate) {
+            $data = json_decode($template['data'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+                $modified = false;
+                foreach ($data as &$element) {
+                    // Fix Name Variable
+                    // Look for the specific name mentioned by user or general patterns if lost
+                    if (isset($element['content']) && (stripos($element['content'], 'Majd Masadeh') !== false)) {
+                        $element['dataVariable'] = 'name';
+                        $element['dataTemplate'] = '{name}';
+                        // We keep content as is for now, client-side will replace it if dataVariable is present
+                        $modified = true;
+                    }
+                    
+                    // Fix QR Code Variable
+                    // Look for image elements that might be the QR code
+                    // Usually QR codes are images. If we find an image without a variable, assume it's the QR if there's only one or it's small
+                    if (strpos($element['content'], '<img') !== false) {
+                        // Check if it's likely a QR code (e.g. square-ish or just the only image)
+                        // Or just force it if it's the only image
+                        if (!isset($element['dataVariable']) || $element['dataVariable'] == '') {
+                            $element['dataVariable'] = 'qr_code';
+                            $modified = true;
+                        }
+                    }
+                }
+                if ($modified) {
+                    $template['data'] = json_encode($data);
+                }
+            }
+        }
+
         echo json_encode(['status' => 'success', 'data' => $template]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Default template not found']);

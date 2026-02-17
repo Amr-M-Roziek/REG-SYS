@@ -58,9 +58,10 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
     $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : '';
     $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : '';
     $search = isset($_GET['search']) ? $_GET['search'] : '';
+    $attendance = isset($_GET['attendance']) ? $_GET['attendance'] : '';
 
     // Build Query
-    $sql = "SELECT * FROM users WHERE 1=1";
+    $sql = "SELECT users.*, (SELECT COUNT(*) FROM attendance_events WHERE user_ref=users.id AND module='reg' AND status='present') as session_count, (SELECT 1 FROM attendance_events WHERE user_ref=users.id AND module='reg' AND status='present' LIMIT 1) as is_present FROM users WHERE 1=1";
     $params = [];
     $types = "";
     
@@ -68,6 +69,14 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
         $sql .= " AND category = ?";
         $params[] = $category;
         $types .= "s";
+    }
+
+    if (!empty($attendance)) {
+        if ($attendance == 'attended') {
+            $sql .= " AND EXISTS (SELECT 1 FROM attendance_events WHERE user_ref=users.id AND module='reg' AND status='present')";
+        } elseif ($attendance == 'not_attended') {
+            $sql .= " AND NOT EXISTS (SELECT 1 FROM attendance_events WHERE user_ref=users.id AND module='reg' AND status='present')";
+        }
     }
     
     if (!empty($startDate)) {
@@ -117,17 +126,20 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                 <tr style="background-color:#f0f0f0; font-weight:bold;">
                     <th width="5%">Sno</th>
                     <th width="15%">Name</th>
-                    <th width="20%">Email</th>
-                    <th width="15%">Profession</th>
+                    <th width="15%">Email</th>
+                    <th width="10%">Profession</th>
                     <th width="15%">Organization</th>
                     <th width="10%">Category</th>
-                    <th width="15%">Reg. Date</th>
+                    <th width="10%">Attendance</th>
+                    <th width="10%">Total Time</th>
+                    <th width="10%">Reg. Date</th>
                 </tr>
             </thead>
             <tbody>';
 
             $cnt = 1;
             while ($row = mysqli_fetch_assoc($result)) {
+                $attText = !empty($row['is_present']) ? 'Attended' : 'Not Attended';
                 $html .= '<tr>
                     <td>'.$cnt.'</td>
                     <td>'.htmlspecialchars($row['fname'] . ' ' . $row['lname']).'</td>
@@ -135,6 +147,8 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                     <td>'.htmlspecialchars($row['profession']).'</td>
                     <td>'.htmlspecialchars($row['organization']).'</td>
                     <td>'.htmlspecialchars($row['category']).'</td>
+                    <td>'.$attText.'</td>
+                    <td>'.(floor((intval($row['session_count']) * 40) / 60) . 'h ' . ((intval($row['session_count']) * 40) % 60) . 'm').'</td>
                     <td>'.htmlspecialchars($row['created_at']).'</td>
                 </tr>';
                 $cnt++;
@@ -151,7 +165,7 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
     } elseif ($format == 'excel') {
         header("Content-Type: application/vnd.ms-excel");
         header("Content-Disposition: attachment; filename=\"$filename.xls\"");
-        echo "Sno\tRef Number\tFirst Name\tLast Name\tEmail Id\tProfession\tOrganization\tCategory\tContact no.\tReg. Date\n";
+        echo "Sno\tRef Number\tFirst Name\tLast Name\tEmail Id\tProfession\tOrganization\tCategory\tAttendance\tTotal Time\tContact no.\tReg. Date\n";
         $cnt = 1;
         while ($row = mysqli_fetch_assoc($result)) {
             // Clean data for tab-delimited
@@ -164,6 +178,8 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                 $row['profession'],
                 $row['organization'],
                 $row['category'],
+                !empty($row['is_present']) ? 'Attended' : 'Not Attended',
+                floor((intval($row['session_count']) * 40) / 60) . 'h ' . ((intval($row['session_count']) * 40) % 60) . 'm',
                 $row['contactno'],
                 $row['created_at']
             );
@@ -180,7 +196,7 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
         header('Content-Disposition: attachment; filename="' . $filename . '.csv"');
         $fp = fopen('php://output', 'w');
         
-        $csv_headers = array('Sno.', 'Ref Number', 'First Name', 'Last Name', 'Email Id', 'Profession', 'Organization', 'Category', 'Contact no.');
+        $csv_headers = array('Sno.', 'Ref Number', 'First Name', 'Last Name', 'Email Id', 'Profession', 'Organization', 'Category', 'Attendance', 'Total Time', 'Contact no.');
         // Only Super Admin can export passwords
         if(isset($_SESSION['role_id']) && $_SESSION['role_id'] == 1) {
             $csv_headers[] = 'Password';
@@ -193,6 +209,8 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
             $csv_row = array(
                 $cnt, $row['id'], $row['fname'], $row['lname'], $row['email'],
                 $row['profession'], $row['organization'], $row['category'],
+                !empty($row['is_present']) ? 'Attended' : 'Not Attended',
+                floor((intval($row['session_count']) * 40) / 60) . 'h ' . ((intval($row['session_count']) * 40) % 60) . 'm',
                 $row['contactno']
             );
             
@@ -402,6 +420,13 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                                         </select>
                                     </div>
                                     <div class="form-group">
+                                        <select name="attendance" class="form-control">
+                                            <option value="">All Attendance</option>
+                                            <option value="attended" <?php echo (isset($_GET['attendance']) && $_GET['attendance'] == 'attended') ? 'selected' : ''; ?>>Attended</option>
+                                            <option value="not_attended" <?php echo (isset($_GET['attendance']) && $_GET['attendance'] == 'not_attended') ? 'selected' : ''; ?>>Not Attended</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
                                         <input type="date" name="start_date" class="form-control" placeholder="Start Date" value="<?php echo isset($_GET['start_date']) ? htmlspecialchars($_GET['start_date']) : ''; ?>" title="Start Date">
                                     </div>
                                     <div class="form-group">
@@ -481,6 +506,8 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                                     <?php if(isset($_SESSION['role_id']) && $_SESSION['role_id'] == 1): ?>
                                     <th>Password</th>
                                     <?php endif; ?>
+                                    <th>Attendance</th>
+                                    <th>Total Time</th>
                                     <th>Reg. Date</th>
                                     <th>Cert. Status</th>
                                     <th>Action</th>
@@ -489,7 +516,7 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                                 <tbody>
                                 <?php 
                                 // Build Query
-                                $sql = "SELECT * FROM users WHERE 1=1";
+                                $sql = "SELECT users.*, (SELECT COUNT(*) FROM attendance_events WHERE user_ref=users.id AND module='reg' AND status='present') as session_count, (SELECT 1 FROM attendance_events WHERE user_ref=users.id AND module='reg' AND status='present' LIMIT 1) as is_present FROM users WHERE 1=1";
                                 $params = [];
                                 $types = "";
 
@@ -505,6 +532,14 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                                     $sql .= " AND category = ?";
                                     $params[] = $_GET['category'];
                                     $types .= "s";
+                                }
+
+                                if (isset($_GET['attendance']) && !empty($_GET['attendance'])) {
+                                    if ($_GET['attendance'] == 'attended') {
+                                        $sql .= " AND EXISTS (SELECT 1 FROM attendance_events WHERE user_ref=users.id AND module='reg' AND status='present')";
+                                    } elseif ($_GET['attendance'] == 'not_attended') {
+                                        $sql .= " AND NOT EXISTS (SELECT 1 FROM attendance_events WHERE user_ref=users.id AND module='reg' AND status='present')";
+                                    }
                                 }
                                 
                                 if (isset($_GET['start_date']) && !empty($_GET['start_date'])) {
@@ -552,6 +587,19 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                                     <?php if(isset($_SESSION['role_id']) && $_SESSION['role_id'] == 1): ?>
                                     <td style="word-break: break-all; min-width: 100px;"><span class="password-display" id="pwd-<?php echo $row['id']; ?>">******</span></td>
                                     <?php endif; ?>
+                                    <?php 
+                                        $isPresent = !empty($row['is_present']);
+                                        $attStyle = $isPresent ? "color: green; font-weight: bold;" : "color: red;";
+                                        $attText = $isPresent ? "Attended" : "Not Attended";
+                                    ?>
+                                    <td style="<?php echo $attStyle; ?>"><?php echo $attText; ?></td>
+                                    <?php
+                                        $totalMinutes = intval($row['session_count']) * 40;
+                                        $hours = floor($totalMinutes / 60);
+                                        $mins = $totalMinutes % 60;
+                                        $timeStr = $hours . 'h ' . $mins . 'm';
+                                    ?>
+                                    <td><?php echo $timeStr; ?></td>
                                     <td><?php echo $row['created_at'];?></td>
                                     <td>
                                         <select class="form-control" onchange="updateCertificateStatus(<?php echo $row['id'];?>, this.value)" style="width: 120px; font-size: 12px; height: 30px; padding: 2px; <?php echo (isset($row['certificate_sent']) && $row['certificate_sent'] == 1) ? 'border-color: #5cb85c; border-width: 2px;' : ''; ?>">

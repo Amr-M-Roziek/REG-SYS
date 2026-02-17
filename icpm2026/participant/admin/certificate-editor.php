@@ -193,7 +193,7 @@ $verificationLink = "https://regsys.cloud/icpm2026/verify.php?id=" . $user['id']
             bottom: 20px;
             border: 5px solid #b22222; /* Reddish border */
             pointer-events: none;
-            z-index: 0;
+            z-index: 1000;
         }
         
         .cert-element {

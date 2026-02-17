@@ -24,12 +24,11 @@ function json_response($data) {
     exit;
 }
 
-// Check session
-if (!isset($_SESSION['id']) || strlen($_SESSION['id']) == 0) {
+// Check session (relaxed for public send_certificate with hash)
+$action = isset($_POST['action']) ? $_POST['action'] : '';
+if ((!isset($_SESSION['id']) || strlen($_SESSION['id']) == 0) && $action !== 'send_certificate') {
     json_response(['status' => 'error', 'message' => 'Unauthorized']);
 }
-
-$action = isset($_POST['action']) ? $_POST['action'] : '';
 
 try {
 
@@ -390,6 +389,10 @@ if ($action == 'save_template') {
         $data = json_decode($template['data'], true);
         if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
             $modified = false;
+            $hasName = false;
+            $hasQR = false;
+            $hasRef = false;
+
             foreach ($data as &$element) {
                 // HOTFIX: Ensure "Speaker" or existing "{category}" variable gets the static prefix
                 $content = strip_tags($element['content'] ?? '');
@@ -404,7 +407,50 @@ if ($action == 'save_template') {
                         $modified = true;
                     }
                 }
+                
+                // Check for existing dynamic fields
+                if (isset($element['dataVariable']) && $element['dataVariable'] === 'fullName') $hasName = true;
+                if ((isset($element['id']) && $element['id'] === 'qr-code-container') || (isset($element['dataVariable']) && $element['dataVariable'] === 'qrcode')) $hasQR = true;
+                if (isset($element['dataVariable']) && $element['dataVariable'] === 'refNo') $hasRef = true;
             }
+            
+            // Inject missing fields
+            if (!$hasName) {
+                $data[] = [
+                    'id' => 'recipient-name-' . uniqid(),
+                    'style' => 'position: absolute; top: 350px; left: 0; width: 1123px; text-align: center; font-size: 40px; font-weight: bold; font-family: Arial; z-index: 100;',
+                    'content' => '{fullName}',
+                    'dataX' => '0',
+                    'dataY' => '0',
+                    'dataVariable' => 'fullName'
+                ];
+                $modified = true;
+            }
+            
+            if (!$hasQR) {
+                $data[] = [
+                    'id' => 'qr-code-container',
+                    'style' => 'position: absolute; bottom: 50px; right: 50px; width: 100px; height: 100px; z-index: 100;',
+                    'content' => '',
+                    'dataX' => '0',
+                    'dataY' => '0',
+                    'dataVariable' => 'qrcode'
+                ];
+                $modified = true;
+            }
+            
+            if (!$hasRef) {
+                $data[] = [
+                    'id' => 'ref-no-' . uniqid(),
+                    'style' => 'position: absolute; bottom: 20px; left: 20px; font-size: 14px; z-index: 100;',
+                    'content' => 'Ref No. {refNo}',
+                    'dataX' => '0',
+                    'dataY' => '0',
+                    'dataVariable' => 'refNo'
+                ];
+                $modified = true;
+            }
+
             if ($modified) {
                 $template['data'] = json_encode($data);
             }
@@ -432,9 +478,17 @@ if ($action == 'save_template') {
     $uid = intval($_POST['uid']);
     $pdfData = $_POST['pdf_data'];
     $overrideEmail = isset($_POST['override_email']) ? trim($_POST['override_email']) : '';
+    $token = isset($_POST['token']) ? $_POST['token'] : '';
     
     if ($uid == 0 || empty($pdfData)) {
         json_response(['status' => 'error', 'message' => 'Invalid data']);
+    }
+
+    if (!isset($_SESSION['id']) || strlen($_SESSION['id']) == 0) {
+        $secret_salt = 'ICPM2026_Secure_Salt';
+        if ($token !== md5($uid . $secret_salt)) {
+            json_response(['status' => 'error', 'message' => 'Unauthorized']);
+        }
     }
     
    // Get User Email
@@ -750,6 +804,151 @@ if ($action == 'save_template') {
         mysqli_commit($con);
         json_response(['status' => 'success', 'message' => "Deleted $deletedCount users"]);
         
+    } catch (Exception $e) {
+        mysqli_rollback($con);
+        json_response(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+    }
+
+} elseif ($action == 'clean_contact') {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        json_response(['status' => 'error', 'message' => 'Invalid CSRF token']);
+    }
+    $ids = isset($_POST['ids']) ? $_POST['ids'] : [];
+    $apply = isset($_POST['apply']) ? intval($_POST['apply']) : 0;
+    if (!is_array($ids) || empty($ids)) {
+        json_response(['status' => 'error', 'message' => 'No users selected']);
+    }
+    $safeIds = array_map(function($id) { return intval($id); }, $ids);
+    $idsStr = implode(',', $safeIds);
+
+    // Helpers
+    $cleanEmails = function($emailRaw) {
+        $emailRaw = (string)$emailRaw;
+        $clean = preg_replace('/\s+/', '', $emailRaw);
+        return $clean;
+    };
+    $cleanPhone = function($phoneRaw) {
+        $p = (string)$phoneRaw;
+        $p = preg_replace('/\s+/', '', $p);
+        if (substr($p, 0, 4) === '+971') {
+            $p = substr($p, 1);
+        }
+        if (substr($p, 0, 5) === '00971') {
+            $p = substr($p, 2);
+        }
+        $p = preg_replace('/[^0-9]/', '', $p);
+        if (preg_match('/^5\d{8}$/', $p)) {
+            $p = '971' . $p;
+        } elseif (preg_match('/^05\d{8}$/', $p)) {
+            $p = '971' . substr($p, 1);
+        }
+        return $p;
+    };
+
+    $query = mysqli_query($con, "SELECT id,fname,lname,email,contactno FROM users WHERE id IN ($idsStr)");
+    $results = [];
+    while ($row = mysqli_fetch_assoc($query)) {
+        $beforeEmail = (string)$row['email'];
+        $beforePhone = (string)$row['contactno'];
+        $afterEmail = $cleanEmails($beforeEmail);
+        $afterPhone = $cleanPhone($beforePhone);
+
+        $emailChanged = $afterEmail !== $beforeEmail;
+        $phoneChanged = $afterPhone !== preg_replace('/\D/', '', $beforePhone) ? true : ($afterPhone !== $beforePhone);
+
+        $notes = [];
+        if ($afterEmail === '') $notes[] = 'Empty email after cleanup';
+        if ($afterPhone === '') $notes[] = 'Empty phone after cleanup';
+        if ($afterEmail !== '' && strpos($afterEmail, '@') === false) $notes[] = 'Email may be invalid';
+
+        $results[] = [
+            'id' => (int)$row['id'],
+            'name' => trim($row['fname'] . ' ' . $row['lname']),
+            'email_before' => $beforeEmail,
+            'email_after' => $afterEmail,
+            'phone_before' => $beforePhone,
+            'phone_after' => $afterPhone,
+            'email_changed' => $emailChanged ? 1 : 0,
+            'phone_changed' => $phoneChanged ? 1 : 0,
+            'notes' => $notes
+        ];
+    }
+
+    if ($apply) {
+        mysqli_begin_transaction($con);
+        try {
+            $stmt = mysqli_prepare($con, "UPDATE users SET email=?, contactno=? WHERE id=?");
+            if (!$stmt) throw new Exception('Prepare failed: ' . mysqli_error($con));
+            foreach ($results as $r) {
+                mysqli_stmt_bind_param($stmt, 'ssi', $r['email_after'], $r['phone_after'], $r['id']);
+                if (!mysqli_stmt_execute($stmt)) {
+                    throw new Exception('Execute failed: ' . mysqli_stmt_error($stmt));
+                }
+            }
+            mysqli_commit($con);
+            json_response(['status' => 'success', 'applied' => true, 'count' => count($results), 'data' => $results]);
+        } catch (Exception $e) {
+            mysqli_rollback($con);
+            json_response(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+        }
+    } else {
+        json_response(['status' => 'success', 'applied' => false, 'count' => count($results), 'data' => $results]);
+    }
+
+} elseif ($action == 'clean_phone_all') {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        json_response(['status' => 'error', 'message' => 'Invalid CSRF token']);
+    }
+
+    $cleanPhone = function($phoneRaw) {
+        $p = (string)$phoneRaw;
+        $p = preg_replace('/\s+/', '', $p);
+        if (substr($p, 0, 4) === '+971') {
+            $p = substr($p, 1);
+        }
+        if (substr($p, 0, 5) === '00971') {
+            $p = substr($p, 2);
+        }
+        $p = preg_replace('/[^0-9]/', '', $p);
+        if (preg_match('/^5\d{8}$/', $p)) {
+            $p = '971' . $p;
+        } elseif (preg_match('/^05\d{8}$/', $p)) {
+            $p = '971' . substr($p, 1);
+        }
+        return $p;
+    };
+
+    $q = mysqli_query($con, "SELECT id, contactno FROM users");
+    $rows = [];
+    while ($row = mysqli_fetch_assoc($q)) {
+        $before = (string)$row['contactno'];
+        $after = $cleanPhone($before);
+        if ($after === $before) continue;
+        $rows[] = [
+            'id' => (int)$row['id'],
+            'before' => $before,
+            'after' => $after
+        ];
+    }
+
+    if (empty($rows)) {
+        json_response(['status' => 'success', 'count' => 0, 'message' => 'No mobile numbers required changes']);
+    }
+
+    mysqli_begin_transaction($con);
+    try {
+        $stmt = mysqli_prepare($con, "UPDATE users SET contactno=? WHERE id=?");
+        if (!$stmt) {
+            throw new Exception('Prepare failed: ' . mysqli_error($con));
+        }
+        foreach ($rows as $r) {
+            mysqli_stmt_bind_param($stmt, 'si', $r['after'], $r['id']);
+            if (!mysqli_stmt_execute($stmt)) {
+                throw new Exception('Execute failed: ' . mysqli_stmt_error($stmt));
+            }
+        }
+        mysqli_commit($con);
+        json_response(['status' => 'success', 'count' => count($rows)]);
     } catch (Exception $e) {
         mysqli_rollback($con);
         json_response(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);

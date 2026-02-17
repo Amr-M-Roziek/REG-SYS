@@ -320,7 +320,8 @@ function saveState() {
             dataX: el.getAttribute('data-x'),
             dataY: el.getAttribute('data-y'),
             dataRotation: el.getAttribute('data-rotation'),
-            dataVariable: el.getAttribute('data-variable')
+            dataVariable: el.getAttribute('data-variable'),
+            dataTemplate: el.getAttribute('data-template')
         });
     });
     
@@ -373,6 +374,7 @@ function applyState(elements) {
         if(data.dataY) div.setAttribute('data-y', data.dataY);
         if(data.dataRotation) div.setAttribute('data-rotation', data.dataRotation);
         if(data.dataVariable) div.setAttribute('data-variable', data.dataVariable);
+        if(data.dataTemplate) div.setAttribute('data-template', data.dataTemplate);
         
         // Restore content
         div.innerHTML = data.content;
@@ -440,7 +442,8 @@ function saveTemplate() {
             dataX: el.getAttribute('data-x'),
             dataY: el.getAttribute('data-y'),
             dataRotation: el.getAttribute('data-rotation'),
-            dataVariable: el.getAttribute('data-variable')
+            dataVariable: el.getAttribute('data-variable'),
+            dataTemplate: el.getAttribute('data-template')
         });
     });
     
@@ -634,15 +637,10 @@ function refreshData() {
              if (template) {
                  el.innerHTML = template.replace('{' + variable + '}', currentUserData[variable]);
              } else if (variable) {
-                 // Direct replacement for elements that are purely variables (like name)
-                 // Only if the current content doesn't look like a template (no other text)
-                 // But safer to assume if data-variable is set, we set the content.
-                 // However, we must respect the "template" nature if user added "Dr. {fullName}".
-                 
-                 // If no template, we just set the text if it's currently a placeholder
-                 if(el.innerHTML.trim() === '{' + variable + '}') {
-                     el.innerHTML = currentUserData[variable];
-                 }
+                 // Fallback for elements with data-variable but missing data-template (legacy/broken saves)
+                 // We assume the content should be just the variable
+                 el.innerHTML = currentUserData[variable];
+                 el.setAttribute('data-template', '{' + variable + '}');
              }
         }
         

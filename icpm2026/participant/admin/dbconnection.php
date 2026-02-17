@@ -54,6 +54,14 @@ if (!$con) {
 }
 
 if (!$con) {
+    // Check for AJAX request to return JSON error
+    if (isset($_GET['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')) {
+        // Clear any previous output
+        if (ob_get_length()) ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['error' => "Database Connection Failed: " . mysqli_connect_error()]);
+        exit();
+    }
     die("Failed to connect to MySQL: " . mysqli_connect_error());
 }
 
@@ -62,4 +70,4 @@ if (!defined('DB_USER')) define('DB_USER', $user);
 if (!defined('DB_PASS')) define('DB_PASS', $pass);
 
 mysqli_set_charset($con, 'utf8mb4');
-?>
+

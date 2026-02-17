@@ -45,6 +45,9 @@ $verificationLink = "https://regsys.cloud/icpm2026/poster26/verify.php?id=" . $u
 
 // Check for override email in URL (for bulk processing)
 $overrideEmailParam = isset($_GET['override_email']) ? trim($_GET['override_email']) : '';
+
+// Check for template_id in URL
+$templateId = isset($_GET['template_id']) ? intval($_GET['template_id']) : 0;
 ?>
 <script>
     const currentUid = "<?php echo $uid; ?>";
@@ -673,6 +676,13 @@ $overrideEmailParam = isset($_GET['override_email']) ? trim($_GET['override_emai
 
     // Auto-generation logic for bulk processing
     window.addEventListener('load', function() {
+        // Check if template_id is passed
+        const templateIdParam = "<?php echo $templateId; ?>";
+        if (templateIdParam > 0 && typeof loadTemplate === 'function') {
+            console.log("Loading template ID from URL:", templateIdParam);
+            loadTemplate(templateIdParam);
+        }
+
         // Check if override email was passed via URL and pre-fill/check
         if (typeof overrideEmailParam !== 'undefined' && overrideEmailParam) {
             const overrideCheckbox = document.getElementById('use-override-email');

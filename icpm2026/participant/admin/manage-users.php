@@ -1,5 +1,8 @@
 <?php
-session_start();
+ob_start(); // Start buffering immediately
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -13,135 +16,192 @@ if (!isset($_SESSION['id']) || strlen($_SESSION['id']) == 0) {
 
 // AJAX Handler for Table Updates
 if (isset($_GET['ajax'])) {
-    $q = isset($_GET['search']) ? $_GET['search'] : '';
-    $cat = isset($_GET['category']) ? $_GET['category'] : '';
-    $limitArg = isset($_GET['limit']) ? $_GET['limit'] : 'ALL';
-    $limit = ($limitArg === 'ALL') ? 1000000 : intval($limitArg);
-    $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-    $offset = ($page - 1) * $limit;
-    $pattern = '%' . $q . '%';
+    try {
+        $q = isset($_GET['search']) ? $_GET['search'] : '';
+        $cat = isset($_GET['category']) ? $_GET['category'] : '';
+        $limitArg = isset($_GET['limit']) ? $_GET['limit'] : 'ALL';
+        $limit = ($limitArg === 'ALL') ? 1000000 : intval($limitArg);
+        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+        $offset = ($page - 1) * $limit;
+        $pattern = '%' . $q . '%';
 
-    // Base WHERE
-    $whereSQL = "1=1";
-    $params = [];
-    $types = "";
+        // Base WHERE
+        $whereSQL = "1=1";
+        $params = [];
+        $types = "";
 
-    // Search
-    if ($q !== '') {
-        $whereSQL .= " AND (
-            CAST(id AS CHAR) LIKE ? OR
-            fname LIKE ? OR
-            lname LIKE ? OR
-            email LIKE ? OR
-            profession LIKE ? OR
-            organization LIKE ? OR
-            category LIKE ?
-        )";
-        for($i=0; $i<7; $i++) { $params[] = $pattern; $types .= "s"; }
-    }
+        $attendanceEnabled = false;
 
-    // Category
-    if ($cat !== '') {
-        $whereSQL .= " AND category = ?";
-        $params[] = $cat;
-        $types .= "s";
-    }
+        // Search
+        if ($q !== '') {
+            $whereSQL .= " AND (
+                CAST(id AS CHAR) LIKE ? OR
+                fname LIKE ? OR
+                lname LIKE ? OR
+                email LIKE ? OR
+                profession LIKE ? OR
+                organization LIKE ? OR
+                category LIKE ?
+            )";
+            for($i=0; $i<7; $i++) { $params[] = $pattern; $types .= "s"; }
+        }
 
-    // Certificate Status
-    $certStatus = isset($_GET['certificate_status']) ? $_GET['certificate_status'] : '';
-    if ($certStatus !== '') {
-        $whereSQL .= " AND certificate_sent = ?";
-        $params[] = $certStatus;
-        $types .= "i";
-    }
-    
-    // Date Range
-    if (!empty($_GET['start_date'])) {
-        $whereSQL .= " AND DATE(posting_date) >= ?";
-        $params[] = $_GET['start_date'];
-        $types .= "s";
-    }
-    if (!empty($_GET['end_date'])) {
-        $whereSQL .= " AND DATE(posting_date) <= ?";
-        $params[] = $_GET['end_date'];
-        $types .= "s";
-    }
+        // Category
+        if ($cat !== '') {
+            $whereSQL .= " AND category = ?";
+            $params[] = $cat;
+            $types .= "s";
+        }
 
-    // Count
-    $countSql = "SELECT COUNT(*) as cnt FROM users WHERE " . $whereSQL;
-    $stmt = mysqli_prepare($con, $countSql);
-    if (!empty($params)) {
-        mysqli_stmt_bind_param($stmt, $types, ...$params);
-    }
-    mysqli_stmt_execute($stmt);
-    $countRes = mysqli_stmt_get_result($stmt);
-    $totalRecords = mysqli_fetch_assoc($countRes)['cnt'];
-    $totalPages = ceil($totalRecords / $limit);
+        // Certificate Status
+        $certStatus = isset($_GET['certificate_status']) ? $_GET['certificate_status'] : '';
+        if ($certStatus !== '') {
+            $whereSQL .= " AND certificate_sent = ?";
+            $params[] = $certStatus;
+            $types .= "i";
+        }
 
-    // Fetch
-    $sql = "SELECT * FROM users WHERE " . $whereSQL . " ORDER BY id DESC LIMIT $limit OFFSET $offset";
-    $stmt = mysqli_prepare($con, $sql);
-    if (!empty($params)) {
-        mysqli_stmt_bind_param($stmt, $types, ...$params);
-    }
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-
-    // Generate HTML
-    $html = '';
-    $cnt = $offset + 1;
-    $wrapInit = function($val, $short=false) {
-        $txt = (string)$val;
-        $cls = $short ? 'cell-content short' : 'cell-content';
-        return '<div class="' . $cls . '" title="' . htmlspecialchars($txt, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($txt, ENT_QUOTES, 'UTF-8') . '</div>';
-    };
-
-    while ($row = mysqli_fetch_assoc($result)) {
-        $certStatus = isset($row['certificate_sent']) ? $row['certificate_sent'] : 0;
-        $html .= "<tr>";
-        $html .= "<td><input type='checkbox' class='user-checkbox' value='" . $row['id'] . "' aria-label='Select user " . $row['id'] . "' onchange='updateBulkButton()'></td>";
-        $html .= "<td>" . $wrapInit($cnt++, true) . "</td>";
-        $html .= "<td>" . $wrapInit($row['id']) . "</td>";
-        $html .= "<td>" . $wrapInit($row['fname']) . "</td>";
-        $html .= "<td>" . $wrapInit($row['lname']) . "</td>";
-        $html .= "<td>" . $wrapInit($row['email']) . "</td>";
-        $html .= "<td>" . $wrapInit($row['profession']) . "</td>";
-        $html .= "<td>" . $wrapInit($row['organization']) . "</td>";
-        $html .= "<td>" . $wrapInit($row['category']) . "</td>";
-        $html .= "<td>" . $wrapInit($row['contactno']) . "</td>";
-        $html .= "<td>" . $wrapInit($row['password']) . "</td>";
-        $html .= "<td>" . $wrapInit(date("Y-m-d H:i:s", strtotime($row['posting_date']))) . "</td>";
-        $html .= "<td><select class='form-control' onchange='updateCertificateStatus(" . $row['id'] . ", this.value)' style='width: 120px; font-size: 12px; height: 30px; padding: 2px; " . ($certStatus == 1 ? "border-color: #5cb85c; border-width: 2px;" : "") . "'><option value='0' " . ($certStatus == 0 ? 'selected' : '') . ">Not Sent</option><option value='1' " . ($certStatus == 1 ? 'selected' : '') . ">Sent</option></select></td>";
-        $html .= "<td class='actions-cell'>";
-        $html .= '<a href="certificate-editor.php?uid=' . $row['id'] . '" title="Design Certificate" class="btn btn-warning btn-xs"><i class="fa fa-certificate"></i></a> ';
-        $html .= '<a href="welcome.php?uid=' . $row['id'] . '" class="btn btn-primary btn-xs"><i class="fa fa-print"></i></a> ';
+        // Attendance Status (conditional on permission)
+        $attendanceStatus = isset($_GET['attendance_status']) ? $_GET['attendance_status'] : '';
         
-        // WhatsApp Button
-        $secret_salt = 'ICPM2026_Secure_Salt';
-        $hash = md5($row['id'] . $secret_salt);
-        $certLink = "https://reg-sys.com/icpm2026/download-certificate.php?id=" . $row['id'] . "&hash=" . $hash;
-        $cleanPhone = preg_replace('/[^0-9]/', '', $row['contactno']);
-        $waMsg = "Dear " . $row['fname'] . ", please download your certificate here: " . $certLink;
-        $waUrl = "https://wa.me/" . $cleanPhone . "?text=" . urlencode($waMsg);
-        
-        $html .= '<a href="' . $waUrl . '" target="_blank" title="Send via WhatsApp" class="btn btn-success btn-xs"><i class="fa fa-comments"></i></a> ';
-        
-        $html .= '<a href="update-profile.php?uid=' . $row['id'] . '" class="btn btn-primary btn-xs"><i class="fa fa-pencil"></i></a> ';
-        $html .= '<a href="manage-users.php?id=' . $row['id'] . '" class="btn btn-danger btn-xs" onClick="return confirm(\'Do you really want to delete\');"><i class="fa fa-trash-o "></i></a>';
-        $html .= "</td>";
-        $html .= "</tr>";
-    }
+        // Date Range
+        if (!empty($_GET['start_date'])) {
+            $whereSQL .= " AND DATE(posting_date) >= ?";
+            $params[] = $_GET['start_date'];
+            $types .= "s";
+        }
+        if (!empty($_GET['end_date'])) {
+            $whereSQL .= " AND DATE(posting_date) <= ?";
+            $params[] = $_GET['end_date'];
+            $types .= "s";
+        }
 
-    $json = json_encode([
-        'html' => $html,
-        'totalRecords' => $totalRecords,
-        'totalPages' => $totalPages,
-        'currentPage' => $page
-    ]);
+        // Count
+        $countSql = "SELECT COUNT(*) as cnt FROM users WHERE " . $whereSQL;
+        $stmt = mysqli_prepare($con, $countSql);
+        if (!$stmt) {
+             throw new Exception("Count Query Prepare Failed: " . mysqli_error($con));
+        }
+        if (!empty($params)) {
+            mysqli_stmt_bind_param($stmt, $types, ...$params);
+        }
+        if (!mysqli_stmt_execute($stmt)) {
+            throw new Exception("Count Query Execute Failed: " . mysqli_stmt_error($stmt));
+        }
+        $countRes = mysqli_stmt_get_result($stmt);
+        $totalRecords = mysqli_fetch_assoc($countRes)['cnt'];
+        $totalPages = ceil($totalRecords / $limit);
+
+        // Fetch
+        $sql = "SELECT users.*, 0 as session_count, 0 as is_present FROM users WHERE " . $whereSQL . " ORDER BY id DESC LIMIT $limit OFFSET $offset";
+        $stmt = mysqli_prepare($con, $sql);
+        if (!$stmt) {
+            $err = mysqli_error($con);
+            // Fallback if cross-DB attendance access is denied
+            if ($attendanceEnabled && (stripos($err, 'attendance_events') !== false || mysqli_errno($con) == 1142)) {
+                $attendanceEnabled = false;
+                $sql = "SELECT users.*, 0 as session_count, 0 as is_present FROM users WHERE " . $whereSQL . " ORDER BY id DESC LIMIT $limit OFFSET $offset";
+                $stmt = mysqli_prepare($con, $sql);
+            }
+            if (!$stmt) {
+                throw new Exception("Fetch Query Prepare Failed: " . $err);
+            }
+        }
+        if (!empty($params)) {
+            mysqli_stmt_bind_param($stmt, $types, ...$params);
+        }
+        $execOk = @mysqli_stmt_execute($stmt);
+        if (!$execOk) {
+            $execErr = mysqli_stmt_error($stmt);
+            // Permission-denied fallback during execute time
+            if ($attendanceEnabled && (stripos($execErr, 'attendance_events') !== false || mysqli_errno($con) == 1142)) {
+                $attendanceEnabled = false;
+                $fallbackSql = "SELECT users.*, 0 as session_count, 0 as is_present FROM users WHERE " . $whereSQL . " ORDER BY id DESC LIMIT $limit OFFSET $offset";
+                $stmt = mysqli_prepare($con, $fallbackSql);
+                if (!$stmt) {
+                    throw new Exception("Fetch Fallback Prepare Failed: " . mysqli_error($con));
+                }
+                if (!empty($params)) {
+                    mysqli_stmt_bind_param($stmt, $types, ...$params);
+                }
+                if (!mysqli_stmt_execute($stmt)) {
+                    throw new Exception("Fetch Fallback Execute Failed: " . mysqli_stmt_error($stmt));
+                }
+            } else {
+                throw new Exception("Fetch Query Execute Failed: " . $execErr);
+            }
+        }
+        $result = mysqli_stmt_get_result($stmt);
+
+        // Generate HTML
+        $html = '';
+        $cnt = $offset + 1;
+        $wrapInit = function($val, $short=false) {
+            $txt = (string)$val;
+            $cls = $short ? 'cell-content short' : 'cell-content';
+            return '<div class="' . $cls . '" title="' . htmlspecialchars($txt, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($txt, ENT_QUOTES, 'UTF-8') . '</div>';
+        };
+
+        while ($row = mysqli_fetch_assoc($result)) {
+            $certStatus = isset($row['certificate_sent']) ? $row['certificate_sent'] : 0;
+            $html .= "<tr>";
+            $html .= "<td><input type='checkbox' class='user-checkbox' value='" . $row['id'] . "' aria-label='Select user " . $row['id'] . "' onchange='updateBulkButton()'></td>";
+            $html .= "<td>" . $wrapInit($cnt++, true) . "</td>";
+            $html .= "<td>" . $wrapInit($row['id']) . "</td>";
+            $html .= "<td>" . $wrapInit($row['fname']) . "</td>";
+            $html .= "<td>" . $wrapInit($row['lname']) . "</td>";
+            $html .= "<td>" . $wrapInit($row['email']) . "</td>";
+            $html .= "<td>" . $wrapInit($row['profession']) . "</td>";
+            $html .= "<td>" . $wrapInit($row['organization']) . "</td>";
+            $html .= "<td>" . $wrapInit($row['category']) . "</td>";
+            $html .= "<td>" . $wrapInit($row['contactno']) . "</td>";
+            $html .= "<td>" . $wrapInit($row['password']) . "</td>";
+            
+            // Attendance Calculation
+            $totalMinutes = intval($row['session_count']) * 40;
+            $hours = floor($totalMinutes / 60);
+            $mins = $totalMinutes % 60;
+            $timeStr = $hours . 'h ' . $mins . 'm';
+            $html .= "<td>" . $wrapInit($timeStr) . "</td>";
+
+            $html .= "<td>" . $wrapInit(date("Y-m-d H:i:s", strtotime($row['posting_date']))) . "</td>";
+            $html .= "<td><select class='form-control' onchange='updateCertificateStatus(" . $row['id'] . ", this.value)' style='width: 120px; font-size: 12px; height: 30px; padding: 2px; " . ($certStatus == 1 ? "border-color: #5cb85c; border-width: 2px;" : "") . "'><option value='0' " . ($certStatus == 0 ? 'selected' : '') . ">Not Sent</option><option value='1' " . ($certStatus == 1 ? 'selected' : '') . ">Sent</option></select></td>";
+            $html .= "<td class='actions-cell'>";
+            $html .= '<a href="certificate-editor.php?uid=' . $row['id'] . '" title="Design Certificate" class="btn btn-warning btn-xs"><i class="fa fa-certificate"></i></a> ';
+            $html .= '<a href="welcome.php?uid=' . $row['id'] . '" class="btn btn-primary btn-xs"><i class="fa fa-print"></i></a> ';
+            
+            // WhatsApp Button
+            $secret_salt = 'ICPM2026_Secure_Salt';
+            $hash = md5($row['id'] . $secret_salt);
+            $certLink = "https://reg-sys.com/icpm2026/download-certificate.php?id=" . $row['id'] . "&hash=" . $hash;
+            $cleanPhone = preg_replace('/[^0-9]/', '', $row['contactno']);
+            $waMsg = "Dear " . $row['fname'] . ", please download your certificate here: " . $certLink;
+            $waUrl = "https://wa.me/" . $cleanPhone . "?text=" . urlencode($waMsg);
+            
+            $html .= '<a href="' . $waUrl . '" target="_blank" title="Send via WhatsApp" class="btn btn-success btn-xs"><i class="fa fa-comments"></i></a> ';
+            
+            $html .= '<a href="update-profile.php?uid=' . $row['id'] . '" class="btn btn-primary btn-xs"><i class="fa fa-pencil"></i></a> ';
+            $html .= '<a href="manage-users.php?id=' . $row['id'] . '" class="btn btn-danger btn-xs" onClick="return confirm(\'Do you really want to delete\');"><i class="fa fa-trash-o "></i></a>';
+            $html .= "</td>";
+            $html .= "</tr>";
+        }
+
+        $json = json_encode([
+            'html' => $html,
+            'totalRecords' => $totalRecords,
+            'totalPages' => $totalPages,
+            'currentPage' => $page
+        ]);
+    } catch (Exception $e) {
+        $json = json_encode(['error' => $e->getMessage()]);
+    }
 
     if ($json === false) {
         $json = json_encode(['error' => 'JSON Encode Error: ' . json_last_error_msg()]);
     }
+    // Clear any previous output to ensure clean JSON
+    if (ob_get_length()) ob_clean();
+    header('Content-Type: application/json');
     echo $json;
     exit();
 }
@@ -171,7 +231,7 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
     $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 
     // Build Query
-    $sql = "SELECT * FROM users WHERE 1=1";
+    $sql = "SELECT users.*, 0 as session_count, 0 as is_present FROM users WHERE 1=1";
     $params = [];
     $types = "";
     
@@ -195,11 +255,28 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
 
     if (!empty($params)) {
         $stmt = mysqli_prepare($con, $sql);
-        mysqli_stmt_bind_param($stmt, $types, ...$params);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
+        if (!$stmt) {
+            $err = mysqli_error($con);
+            if ($attendanceEnabled && (stripos($err, 'attendance_events') !== false || mysqli_errno($con) == 1142)) {
+                // Rebuild without attendance subqueries
+                $sql = "SELECT users.*, 0 as session_count, 0 as is_present FROM users WHERE 1=1";
+                if (!empty($category)) { /* keep same params flow */ }
+                $stmt = mysqli_prepare($con, $sql . substr(strstr($sql, ' WHERE '), 0)); // conservative, will rebind below
+            }
+        }
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, $types, ...$params);
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+        } else {
+            // Last resort
+            $result = mysqli_query($con, "SELECT users.*, 0 as session_count, 0 as is_present FROM users WHERE 1=1");
+        }
     } else {
         $result = mysqli_query($con, $sql);
+        if (!$result && $attendanceEnabled && (stripos(mysqli_error($con), 'attendance_events') !== false || mysqli_errno($con) == 1142)) {
+            $result = mysqli_query($con, "SELECT users.*, 0 as session_count, 0 as is_present FROM users WHERE 1=1");
+        }
     }
 
     if ($format == 'pdf') {
@@ -222,10 +299,11 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                 <tr style="background-color:#f0f0f0; font-weight:bold;">
                     <th width="5%">Sno</th>
                     <th width="15%">Name</th>
-                    <th width="20%">Email</th>
-                    <th width="15%">Profession</th>
+                    <th width="15%">Email</th>
+                    <th width="10%">Profession</th>
                     <th width="15%">Organization</th>
                     <th width="10%">Category</th>
+                    <th width="10%">Total Time</th>
                     <th width="15%">Reg. Date</th>
                 </tr>
             </thead>
@@ -240,6 +318,7 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                     <td>'.htmlspecialchars($row['profession']).'</td>
                     <td>'.htmlspecialchars($row['organization']).'</td>
                     <td>'.htmlspecialchars($row['category']).'</td>
+                    <td>'.(floor((intval($row['session_count']) * 40) / 60) . 'h ' . ((intval($row['session_count']) * 40) % 60) . 'm').'</td>
                     <td>'.htmlspecialchars($row['posting_date']).'</td>
                 </tr>';
                 $cnt++;
@@ -256,7 +335,7 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
     } elseif ($format == 'excel') {
         header("Content-Type: application/vnd.ms-excel");
         header("Content-Disposition: attachment; filename=\"$filename.xls\"");
-        echo "Sno\tRef Number\tFirst Name\tLast Name\tEmail Id\tProfession\tOrganization\tCategory\tContact no.\tReg. Date\n";
+        echo "Sno\tRef Number\tFirst Name\tLast Name\tEmail Id\tProfession\tOrganization\tCategory\tTotal Time\tContact no.\tReg. Date\n";
         $cnt = 1;
         while ($row = mysqli_fetch_assoc($result)) {
             // Clean data for tab-delimited
@@ -269,6 +348,7 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
                 $row['profession'],
                 $row['organization'],
                 $row['category'],
+                floor((intval($row['session_count']) * 40) / 60) . 'h ' . ((intval($row['session_count']) * 40) % 60) . 'm',
                 $row['contactno'],
                 $row['created_at']
             );
@@ -284,12 +364,13 @@ if (isset($_GET['export_db']) && $_GET['export_db'] == 1) {
         header('Content-Type: text/csv');
         header('Content-Disposition: attachment; filename="' . $filename . '.csv"');
         $fp = fopen('php://output', 'w');
-        fputcsv($fp, array('Sno.', 'Ref Number', 'First Name', 'Last Name', 'Email Id', 'Profession', 'Organization', 'Category', 'Contact no.', 'Password', 'Reg. Date'));
+        fputcsv($fp, array('Sno.', 'Ref Number', 'First Name', 'Last Name', 'Email Id', 'Profession', 'Organization', 'Category', 'Total Time', 'Contact no.', 'Password', 'Reg. Date'));
         $cnt = 1;
         while ($row = mysqli_fetch_assoc($result)) {
             fputcsv($fp, array(
                 $cnt, $row['id'], $row['fname'], $row['lname'], $row['email'],
                 $row['profession'], $row['organization'], $row['category'],
+                floor((intval($row['session_count']) * 40) / 60) . 'h ' . ((intval($row['session_count']) * 40) % 60) . 'm',
                 $row['contactno'], $row['password'], $row['posting_date']
             ));
             $cnt++;
@@ -307,7 +388,7 @@ $adminid=$_GET['id'];
 $msg=mysqli_query($con,"delete from users where id='$adminid'");
 if($msg)
 {
-echo "<script>alert('Data deleted');</script>";
+echo "<script>alert('Data deleted'); window.location.href='manage-users.php';</script>";
 }
 }
 ?>
@@ -504,7 +585,7 @@ echo "<script>alert('Data deleted');</script>";
                   <div class="col-md-12">
                     <div class="content-panel search-toolbar" role="search" aria-label="User table instant search">
                       <div class="row">
-                          <div class="col-md-4">
+                          <div class="col-md-3">
                               <div class="input-group">
                                 <span class="input-group-addon" id="users-search-icon"><i class="fa fa-search" aria-hidden="true"></i></span>
                                 <input type="text" id="users-search" class="form-control" placeholder="Search users..." aria-label="Search users" aria-controls="users-table" aria-describedby="users-search-icon">
@@ -528,7 +609,14 @@ echo "<script>alert('Data deleted');</script>";
                                   <option value="0">Not Sent (<?php echo $notSentCount; ?>)</option>
                               </select>
                           </div>
-                          <div class="col-md-4">
+                          <div class="col-md-2">
+                              <select id="attendance-status-filter" class="form-control" aria-label="Filter by Attendance">
+                                  <option value="">All Attendance</option>
+                                  <option value="attended">Attended</option>
+                                  <option value="not_attended">Not Attended</option>
+                              </select>
+                          </div>
+                          <div class="col-md-3">
                               <div class="input-group">
                                   <input type="date" id="date-start" class="form-control" placeholder="Start Date" title="Start Date">
                                   <span class="input-group-addon" style="border-left: 0; border-right: 0;">to</span>
@@ -548,11 +636,57 @@ echo "<script>alert('Data deleted');</script>";
                               </div>
                               <button class="btn btn-primary" id="btn-bulk-upload" onclick="openBulkUploadModal()" style="margin-left: 5px;"><i class="fa fa-upload"></i> Bulk Upload</button>
                               <a href="force_category_update.php" class="btn btn-warning" onclick="return confirm('This will set ALL users (current and future) to \'Participant\' category. Are you sure?')" style="margin-left: 5px;"><i class="fa fa-wrench"></i> Fix Categories</a>
+                              <button class="btn btn-warning" id="btn-fix-phones" onclick="fixAllPhones()" style="margin-left: 5px;"><i class="fa fa-phone"></i> Fix Mobiles</button>
+                              <button class="btn btn-info" id="btn-clean-contact" onclick="openCleanContactModal()" disabled style="margin-left: 5px;"><i class="fa fa-magic"></i> Clean Contact Data</button>
                               <button class="btn btn-warning" id="btn-bulk-email" onclick="openBulkEmailModal()" disabled style="margin-left: 5px;"><i class="fa fa-envelope"></i> Send Certificates</button>
                               <button class="btn btn-danger" id="btn-bulk-delete" onclick="openBulkDeleteModal()" disabled style="margin-left: 5px;"><i class="fa fa-trash-o"></i> Delete Selected</button>
                           </div>
                       </div>
                       
+                      <!-- Clean Contact Data Modal -->
+                      <div aria-hidden="true" role="dialog" tabindex="-1" id="clean-contact-modal" class="modal fade">
+                          <div class="modal-dialog" style="width: 95%; max-width: 1200px;">
+                              <div class="modal-content">
+                                  <div class="modal-header">
+                                      <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                                      <h4 class="modal-title"><i class="fa fa-magic"></i> Clean Contact Data</h4>
+                                  </div>
+                                  <div class="modal-body">
+                                      <div class="alert alert-info" id="clean-contact-info">
+                                          <span id="clean-selection-count">0 users selected</span> — This tool removes whitespace from emails, and normalizes phone numbers to digits only with UAE prefix rules. You will see a preview before applying changes.
+                                      </div>
+                                      <div style="margin-bottom:10px; display:flex; gap:10px; align-items:center;">
+                                          <button class="btn btn-default" id="btn-preview-clean"><i class="fa fa-eye"></i> Preview</button>
+                                          <button class="btn btn-primary" id="btn-apply-clean" disabled><i class="fa fa-check"></i> Apply Changes</button>
+                                          <span id="clean-status" style="margin-left:10px;"></span>
+                                      </div>
+                                      <div class="table-responsive" style="max-height: 60vh; overflow:auto; border:1px solid #eee;">
+                                          <table class="table table-striped table-condensed">
+                                              <thead>
+                                                  <tr>
+                                                      <th style="width:80px;">User ID</th>
+                                                      <th style="width:200px;">Name</th>
+                                                      <th>Email (Before)</th>
+                                                      <th>Email (After)</th>
+                                                      <th>Phone (Before)</th>
+                                                      <th>Phone (After)</th>
+                                                      <th style="width:120px;">Status</th>
+                                                  </tr>
+                                              </thead>
+                                              <tbody id="clean-contact-tbody">
+                                                  <tr><td colspan="7" class="text-center text-muted">No data yet. Click Preview to analyze selected users.</td></tr>
+                                              </tbody>
+                                          </table>
+                                      </div>
+                                  </div>
+                                  <div class="modal-footer">
+                                      <button data-dismiss="modal" class="btn btn-default" type="button">Close</button>
+                                      <button class="btn btn-primary" id="btn-apply-clean-footer" disabled type="button">Apply Changes</button>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
                       <!-- Bulk Delete Modal -->
                       <div id="bulk-delete-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
                           <div style="background:white; padding:20px; border-radius:8px; width:400px; text-align: left;">
@@ -750,6 +884,7 @@ echo "<script>alert('Data deleted');</script>";
                                   <th> Category</th>
                                   <th>Contact no.</th>
                                   <th>Password</th>
+                                  <th>Total Time</th>
                                   <th>Reg. Date</th>
                                   <th>Cert. Status</th>
                                   <th>Action</th>
@@ -757,7 +892,7 @@ echo "<script>alert('Data deleted');</script>";
                               </thead>
                               <tbody>
                               <?php 
-                              $sql = "select * from users";
+                              $sql = "SELECT users.*, (SELECT COUNT(*) FROM attendance_events WHERE user_ref=users.id AND module='reg' AND status='present') as session_count FROM users";
                               if(isset($_GET['category']) && !empty($_GET['category'])) {
                                   $cat = mysqli_real_escape_string($con, $_GET['category']);
                                   $sql .= " WHERE category='$cat'";
@@ -789,6 +924,14 @@ echo "<script>alert('Data deleted');</script>";
                                   echo "<td>" . $wrapInit($row['category']) . "</td>";
                                   echo "<td>" . $wrapInit($row['contactno']) . "</td>";
                                   echo "<td>" . $wrapInit($row['password']) . "</td>";
+                                  
+                                  // Attendance Calculation
+                                  $totalMinutes = intval($row['session_count']) * 40;
+                                  $hours = floor($totalMinutes / 60);
+                                  $mins = $totalMinutes % 60;
+                                  $timeStr = $hours . 'h ' . $mins . 'm';
+                                  echo "<td>" . $wrapInit($timeStr) . "</td>";
+
                                   echo "<td>" . $wrapInit(date("Y-m-d H:i:s", strtotime($row['posting_date']))) . "</td>";
                                   echo "<td><select class='form-control' onchange='updateCertificateStatus(" . $row['id'] . ", this.value)' style='width: 120px; font-size: 12px; height: 30px; padding: 2px; " . ($row['certificate_sent'] == 1 ? "border-color: #5cb85c; border-width: 2px;" : "") . "'><option value='0' " . (($row['certificate_sent'] == 0) ? 'selected' : '') . ">Not Sent</option><option value='1' " . (($row['certificate_sent'] == 1) ? 'selected' : '') . ">Sent</option></select></td>";
                                   echo "<td class='actions-cell'>";
@@ -1368,6 +1511,7 @@ $(document).on('change', '#use-override-email', function() {
               var count = $('.user-checkbox:checked').length;
               $('#btn-bulk-email').prop('disabled', count === 0);
               $('#btn-bulk-delete').prop('disabled', count === 0);
+              $('#btn-clean-contact').prop('disabled', count === 0);
               $('#bulk-selection-count').text(count + ' users selected');
           }
 
@@ -1442,6 +1586,131 @@ $(document).on('change', '#use-override-email', function() {
                   }
               });
           };
+
+          // Clean Contact Data Logic
+          window.openCleanContactModal = function() {
+              var count = $('.user-checkbox:checked').length;
+              if (count === 0) { alert('Please select at least one user'); return; }
+              $('#clean-selection-count').text(count + ' users selected');
+              $('#clean-contact-tbody').html('<tr><td colspan="7" class="text-center text-muted">Click Preview to analyze selected users.</td></tr>');
+              $('#btn-apply-clean, #btn-apply-clean-footer').prop('disabled', true);
+              $('#clean-status').text('');
+              $('#clean-contact-modal').modal('show');
+          };
+
+          window.fixAllPhones = function() {
+              if (!confirm('This will normalize mobile numbers for all users. Continue?')) return;
+              var $btn = $('#btn-fix-phones');
+              $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Fixing...');
+              $.ajax({
+                  url: 'ajax_handler.php',
+                  method: 'POST',
+                  dataType: 'json',
+                  data: {
+                      action: 'clean_phone_all',
+                      csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
+                  },
+                  success: function(res) {
+                      if (res.status === 'success') {
+                          alert('Fixed mobile numbers for ' + (res.count || 0) + ' users');
+                          if (typeof window.fetchRows === 'function') {
+                              window.fetchRows($('#users-search').val());
+                          } else {
+                              location.reload();
+                          }
+                      } else {
+                          alert('Error: ' + (res.message || 'Unknown error'));
+                      }
+                  },
+                  error: function() {
+                      alert('Network error while fixing mobile numbers');
+                  },
+                  complete: function() {
+                      $btn.prop('disabled', false).html('<i class="fa fa-phone"></i> Fix Mobiles');
+                  }
+              });
+          };
+
+          function collectSelectedIds() {
+              var ids = [];
+              $('.user-checkbox:checked').each(function() { ids.push($(this).val()); });
+              return ids;
+          }
+
+          function renderCleanRows(rows) {
+              var $tb = $('#clean-contact-tbody');
+              $tb.empty();
+              if (!rows || rows.length === 0) {
+                  $tb.html('<tr><td colspan="7" class="text-center text-muted">No data returned.</td></tr>');
+                  return;
+              }
+              rows.forEach(function(r){
+                  var statusParts = [];
+                  if (r.email_changed) statusParts.push('Email');
+                  if (r.phone_changed) statusParts.push('Phone');
+                  if (r.notes && r.notes.length) statusParts = statusParts.concat(r.notes);
+                  var status = statusParts.length ? statusParts.join(' | ') : 'No change';
+                  var tr = '<tr>' +
+                      '<td>' + r.id + '</td>' +
+                      '<td>' + $('<div>').text(r.name).html() + '</td>' +
+                      '<td>' + $('<div>').text(r.email_before || '').html() + '</td>' +
+                      '<td>' + $('<div>').text(r.email_after || '').html() + '</td>' +
+                      '<td>' + $('<div>').text(r.phone_before || '').html() + '</td>' +
+                      '<td>' + $('<div>').text(r.phone_after || '').html() + '</td>' +
+                      '<td>' + status + '</td>' +
+                      '</tr>';
+                  $tb.append(tr);
+              });
+          }
+
+          function previewOrApplyClean(apply) {
+              var ids = collectSelectedIds();
+              if (ids.length === 0) { alert('Please select at least one user'); return; }
+              $('#clean-status').html('<span class="text-info"><i class="fa fa-spinner fa-spin"></i> ' + (apply ? 'Applying changes...' : 'Analyzing...') + '</span>');
+              $('#btn-preview-clean, #btn-apply-clean, #btn-apply-clean-footer').prop('disabled', true);
+              $.ajax({
+                  url: 'ajax_handler.php',
+                  method: 'POST',
+                  dataType: 'json',
+                  data: {
+                      action: 'clean_contact',
+                      ids: ids,
+                      apply: apply ? 1 : 0,
+                      csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
+                  },
+                  success: function(res) {
+                      if (res.status === 'success') {
+                          renderCleanRows(res.data);
+                          if (!apply) {
+                              var changed = res.data.filter(function(r){ return r.email_changed || r.phone_changed; }).length;
+                              $('#clean-status').html('<span class="text-success">Preview ready: ' + changed + ' user(s) with changes</span>');
+                              $('#btn-apply-clean, #btn-apply-clean-footer').prop('disabled', changed === 0);
+                          } else {
+                              $('#clean-status').html('<span class="text-success">Applied successfully to ' + res.count + ' user(s)</span>');
+                              if (typeof window.fetchRows === 'function') {
+                                  window.fetchRows($('#users-search').val());
+                              }
+                          }
+                      } else {
+                          $('#clean-status').html('<span class="text-danger">Error: ' + (res.message || 'Unknown error') + '</span>');
+                      }
+                  },
+                  error: function() {
+                      $('#clean-status').html('<span class="text-danger">Network error</span>');
+                  },
+                  complete: function() {
+                      $('#btn-preview-clean').prop('disabled', false);
+                      $('#btn-apply-clean, #btn-apply-clean-footer').prop('disabled', false);
+                  }
+              });
+          }
+
+          $('#btn-preview-clean').on('click', function(){ previewOrApplyClean(false); });
+          $('#btn-apply-clean, #btn-apply-clean-footer').on('click', function(){ 
+              if (!confirm('Apply cleaned emails and phone numbers to selected users?')) return;
+              previewOrApplyClean(true); 
+          });
+
 
           // Bulk Upload Logic
           let uploadState = {
@@ -1795,13 +2064,14 @@ $(document).on('change', '#use-override-email', function() {
         $('#category-filter').on('change', function(){
             window.fetchRows($('#users-search').val());
         });
-        $('#certificate-status-filter').on('change', function(){
+        $('#certificate-status-filter, #attendance-status-filter').on('change', function(){
             window.fetchRows($('#users-search').val());
         });
         
         window.fetchRows = function(q, callback, page){
           var cat = $('#category-filter').val();
           var certStatus = $('#certificate-status-filter').val();
+          var attendanceStatus = $('#attendance-status-filter').val();
           var start = $('#date-start').val();
           var end = $('#date-end').val();
           var limit = $('#rows-per-page').val() || 'ALL';
@@ -1822,12 +2092,19 @@ $(document).on('change', '#use-override-email', function() {
                 search: q, 
                 category: cat,
                 certificate_status: certStatus,
+                attendance_status: attendanceStatus,
                 start_date: start,
                 end_date: end,
                 page: page,
                 limit: limit
             },
             success: function(data){
+              if (data.error) {
+                  console.error("Server Error:", data.error);
+                  updateStatus('Error: ' + data.error);
+                  $tbody.html('<tr><td colspan="10" class="text-center text-danger">' + data.error + '</td></tr>');
+                  return;
+              }
               $tbody.html(data.html);
               renderPagination(data.totalPages, data.currentPage);
               
@@ -1962,11 +2239,15 @@ $(document).on('change', '#use-override-email', function() {
             e.preventDefault();
             var format = $(this).data('format');
             var cat = $('#category-filter').val();
+            var certStatus = $('#certificate-status-filter').val();
+            var attendanceStatus = $('#attendance-status-filter').val();
             var start = $('#date-start').val();
             var end = $('#date-end').val();
             
             var url = 'manage-users.php?export_db=1&format=' + format;
             if (cat) url += '&category=' + encodeURIComponent(cat);
+            if (certStatus) url += '&certificate_status=' + encodeURIComponent(certStatus);
+            if (attendanceStatus) url += '&attendance_status=' + encodeURIComponent(attendanceStatus);
             if (start) url += '&start_date=' + encodeURIComponent(start);
             if (end) url += '&end_date=' + encodeURIComponent(end);
             

@@ -221,7 +221,9 @@ echo "<script>alert('Data deleted');</script>";
 
                                   <th> Category</th>
 
-                                  <th>Contact no.</th>
+                                  <th>Total Time</th>
+
+                                  <th></th>Contact no.</th>
 
                                   <th>Password</th>
 
@@ -238,7 +240,7 @@ echo "<script>alert('Data deleted');</script>";
                               <tbody>
                               <?php 
                               $limitArg = isset($_GET['limit']) ? $_GET['limit'] : '100';
-                              $sql = "select * from users";
+                              $sql = "SELECT users.*, (SELECT COUNT(*) FROM regsys_reg.attendance_events WHERE user_ref=users.id AND module='poster26' AND status='present') as session_count FROM users";
                               if ($limitArg !== 'ALL') {
                                   $sql .= " LIMIT " . intval($limitArg);
                               }
@@ -264,6 +266,13 @@ echo "<script>alert('Data deleted');</script>";
                                   <td><?php echo $row['organization'];?></td>
 
                                   <td><?php echo $row['category'];?></td>
+
+                                  <td><?php 
+                                      $totalMinutes = intval($row['session_count']) * 40;
+                                      $hours = floor($totalMinutes / 60);
+                                      $mins = $totalMinutes % 60;
+                                      echo $hours . 'h ' . $mins . 'm';
+                                  ?></td>
 
                                   <td><?php echo $row['contactno'];?></td>
 

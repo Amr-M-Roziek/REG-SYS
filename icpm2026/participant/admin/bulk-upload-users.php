@@ -1,13 +1,26 @@
 <?php
+ob_start(); // Start output buffering
 session_start();
-include 'dbconnection.php';
-mysqli_set_charset($con, 'utf8mb4');
+header('Content-Type: application/json');
 
-// Check auth
+// Check for upload size limit (POST empty but Content-Length > 0)
+if (empty($_POST) && empty($_FILES) && isset($_SERVER['CONTENT_LENGTH']) && $_SERVER['CONTENT_LENGTH'] > 0) {
+    ob_clean();
+    $maxSize = ini_get('post_max_size');
+    echo json_encode(['status' => 'error', 'message' => "Upload failed: File exceeds server limit ($maxSize)."]);
+    exit;
+}
+
 if (!isset($_SESSION['id']) || strlen($_SESSION['id']) == 0) {
-    header('Content-Type: application/json');
+    ob_clean();
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;
+}
+
+include 'dbconnection.php';
+mysqli_set_charset($con, 'utf8mb4');
+if (file_exists(__DIR__ . '/SimpleXLSX.php')) {
+    require_once __DIR__ . '/SimpleXLSX.php';
 }
 
 // Ensure Upload Logs Table exists
@@ -204,43 +217,46 @@ if (isset($_GET['action']) && $_GET['action'] == 'template') {
 
 // Handle File Upload (Step 1: Save & Analyze)
 if (isset($_POST['action']) && $_POST['action'] == 'upload_users') {
+    // Clean buffer
+    if (ob_get_length()) ob_clean();
     header('Content-Type: application/json');
 
-    // Validate CSRF
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid CSRF token.']);
-        exit;
-    }
-
-    if (!isset($_FILES['file']) || $_FILES['file']['error'] != 0) {
-        $msg = 'File upload error';
-        if (isset($_FILES['file']['error'])) {
-            switch ($_FILES['file']['error']) {
-                case UPLOAD_ERR_INI_SIZE: $msg = 'File exceeds upload_max_filesize'; break;
-                case UPLOAD_ERR_FORM_SIZE: $msg = 'File exceeds form MAX_FILE_SIZE'; break;
-                case UPLOAD_ERR_PARTIAL: $msg = 'File partially uploaded'; break;
-                case UPLOAD_ERR_NO_FILE: $msg = 'No file uploaded'; break;
-            }
+    try {
+        // Validate CSRF
+        if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+             // ... existing csrf error logic ...
+             throw new Exception("Invalid CSRF token.");
         }
-        echo json_encode(['status' => 'error', 'message' => $msg]);
-        exit;
-    }
 
-    $file = $_FILES['file'];
-    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    
-    if (!in_array($ext, ['csv', 'xls', 'xlsx'])) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid file format. Only .csv, .xls, .xlsx allowed.']);
-        exit;
-    }
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] != 0) {
+            $msg = 'File upload error';
+            if (isset($_FILES['file']['error'])) {
+                switch ($_FILES['file']['error']) {
+                    case UPLOAD_ERR_INI_SIZE: $msg = 'File exceeds upload_max_filesize'; break;
+                    case UPLOAD_ERR_FORM_SIZE: $msg = 'File exceeds form MAX_FILE_SIZE'; break;
+                    case UPLOAD_ERR_PARTIAL: $msg = 'File partially uploaded'; break;
+                    case UPLOAD_ERR_NO_FILE: $msg = 'No file uploaded'; break;
+                }
+            }
+            throw new Exception($msg);
+        }
 
-    $filename = 'bulk_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
-    $targetPath = $uploadDir . $filename;
+        $file = $_FILES['file'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        
+        if (!in_array($ext, ['csv', 'xls', 'xlsx'])) {
+            throw new Exception('Invalid file format. Only .csv, .xls, .xlsx allowed.');
+        }
 
-    if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
-        echo json_encode(['status' => 'error', 'message' => 'Failed to save file.']);
-        exit;
-    }
+        $filename = 'bulk_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
+        $targetPath = $uploadDir . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+            throw new Exception('Failed to save file.');
+        }
+        
+        // ... rest of logic ...
+
 
     if ($ext === 'xlsx') {
         $csvName = preg_replace('/\.xlsx$/', '.csv', $filename);
@@ -251,8 +267,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'upload_users') {
             if (file_exists($csvPath)) {
                 unlink($csvPath);
             }
-            echo json_encode(['status' => 'error', 'message' => 'Could not read Excel file. Please use the provided template or upload CSV.']);
-            exit;
+            throw new Exception('Could not read Excel file. Please use the provided template or upload CSV.');
         }
         $filename = $csvName;
         $targetPath = $csvPath;
@@ -262,8 +277,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'upload_users') {
     // Analyze File (Count Records)
     $handle = fopen($targetPath, "r");
     if (!$handle) {
-        echo json_encode(['status' => 'error', 'message' => 'Could not open file.']);
-        exit;
+        throw new Exception('Could not open file.');
     }
 
     // Detect delimiter
@@ -287,8 +301,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'upload_users') {
     
     if ($totalRecords < 1) {
         unlink($targetPath);
-        echo json_encode(['status' => 'error', 'message' => 'File is empty or contains only headers.']);
-        exit;
+        throw new Exception('File is empty or contains only headers.');
     }
 
     // Log in DB
@@ -306,126 +319,143 @@ if (isset($_POST['action']) && $_POST['action'] == 'upload_users') {
         'start_pos' => $startPos,
         'delimiter' => $delimiter
     ]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
     exit;
 }
 
 // Handle Preview (Step 1.5: Preview Data)
 if (isset($_POST['action']) && $_POST['action'] == 'preview_file') {
+    // Clean buffer before starting
+    if (ob_get_length()) ob_clean();
     header('Content-Type: application/json');
 
-    $filename = $_POST['filename'];
-    $filePath = $uploadDir . basename($filename);
-    
-    if (!file_exists($filePath)) {
-        echo json_encode(['status' => 'error', 'message' => 'File not found.']);
-        exit;
-    }
-
-    $handle = fopen($filePath, "r");
-    
-    // Detect delimiter
-    $line = fgets($handle);
-    rewind($handle);
-    $delimiter = ",";
-    if (strpos($line, "\t") !== false && strpos($line, ",") === false) $delimiter = "\t";
-    elseif (strpos($line, ";") !== false && strpos($line, ",") === false) $delimiter = ";";
-
-    // Skip Header
-    fgetcsv($handle, 0, $delimiter);
-
-    $hasFullnameColumn = false;
-    $colResult = mysqli_query($con, "SHOW COLUMNS FROM users LIKE 'fullname'");
-    if ($colResult && mysqli_num_rows($colResult) > 0) {
-        $hasFullnameColumn = true;
-    }
-
-    $previewRows = [];
-    $count = 0;
-    
-    while ($count < 5 && ($data = fgetcsv($handle, 0, $delimiter)) !== FALSE) {
-        // Clean data encoding
-        $data = array_map(function($str) {
-            $str = trim($str);
-            // Convert to UTF-8 if not already
-            if (!mb_check_encoding($str, 'UTF-8')) {
-                return mb_convert_encoding($str, 'UTF-8', 'Windows-1252, ISO-8859-1');
-            }
-            return $str;
-        }, $data);
-
-        if (implode('', $data) == '') continue;
-
-        $fname = $data[0] ?? '';
-        $lname = $data[1] ?? '';
+    try {
+        $filename = $_POST['filename'];
+        $filePath = $uploadDir . basename($filename);
         
-        if (count($data) >= 9) {
-            $rawFullname = $data[2] ?? '';
-            $fullname = $rawFullname !== '' ? $rawFullname : trim($fname . ' ' . $lname);
-            $email = $data[3] ?? '';
-            // Aggressively remove all whitespace before sanitization
-            $email = preg_replace('/\s+/', '', $email);
-            $email = filter_var($email, FILTER_SANITIZE_EMAIL);
-            $profession = $data[5] ?? '';
-            $organization = $data[6] ?? '';
-            $category = 'Participant';
-        } else {
-            $fullname = trim($fname . ' ' . $lname);
-            $email = $data[2] ?? '';
-            // Aggressively remove all whitespace before sanitization
-            $email = preg_replace('/\s+/', '', $email);
-            $email = filter_var($email, FILTER_SANITIZE_EMAIL);
-            $profession = $data[4] ?? '';
-            $organization = $data[5] ?? '';
-            $category = 'Participant';
+        if (!file_exists($filePath)) {
+            throw new Exception('File not found.');
         }
 
-        $status = 'Valid';
-        $statusColor = 'green';
-        $notes = '';
+        $handle = fopen($filePath, "r");
+        if (!$handle) {
+             throw new Exception('Could not open file.');
+        }
+        
+        // Detect delimiter
+        $line = fgets($handle);
+        rewind($handle);
+        
+        if ($line === false) {
+             throw new Exception('File is empty.');
+        }
 
-        if (empty($email)) {
-            $status = 'Invalid';
-            $statusColor = 'red';
-            $notes = 'Missing Email';
-        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $status = 'Invalid';
-            $statusColor = 'red';
-            $notes = 'Invalid Email Format';
-        } else {
-            // Check Duplicate
-            $checkStmt = mysqli_prepare($con, "SELECT id FROM users WHERE email = ?");
-            mysqli_stmt_bind_param($checkStmt, "s", $email);
-            mysqli_stmt_execute($checkStmt);
-            mysqli_stmt_store_result($checkStmt);
-            if (mysqli_stmt_num_rows($checkStmt) > 0) {
-                $status = 'Duplicate';
-                $statusColor = 'orange';
-                $notes = 'Email already exists';
+        $delimiter = ",";
+        if (strpos($line, "\t") !== false && strpos($line, ",") === false) $delimiter = "\t";
+        elseif (strpos($line, ";") !== false && strpos($line, ",") === false) $delimiter = ";";
+
+        // Skip Header
+        fgetcsv($handle, 0, $delimiter);
+
+        $hasFullnameColumn = false;
+        $colResult = mysqli_query($con, "SHOW COLUMNS FROM users LIKE 'fullname'");
+        if ($colResult && mysqli_num_rows($colResult) > 0) {
+            $hasFullnameColumn = true;
+        }
+
+        $previewRows = [];
+        $count = 0;
+        
+        while ($count < 5 && ($data = fgetcsv($handle, 0, $delimiter)) !== FALSE) {
+            // Clean data encoding
+            $data = array_map(function($str) {
+                $str = trim($str);
+                // Convert to UTF-8 if not already
+                if (!mb_check_encoding($str, 'UTF-8')) {
+                    return mb_convert_encoding($str, 'UTF-8', 'Windows-1252, ISO-8859-1');
+                }
+                return $str;
+            }, $data);
+
+            if (implode('', $data) == '') continue;
+
+            $fname = $data[0] ?? '';
+            $lname = $data[1] ?? '';
+            
+            if (count($data) >= 9) {
+                $rawFullname = $data[2] ?? '';
+                $fullname = $rawFullname !== '' ? $rawFullname : trim($fname . ' ' . $lname);
+                $email = $data[3] ?? '';
+                // Aggressively remove all whitespace before sanitization
+                $email = preg_replace('/\s+/', '', $email);
+                $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+                $profession = $data[5] ?? '';
+                $organization = $data[6] ?? '';
+                $category = 'Participant';
+            } else {
+                $fullname = trim($fname . ' ' . $lname);
+                $email = $data[2] ?? '';
+                // Aggressively remove all whitespace before sanitization
+                $email = preg_replace('/\s+/', '', $email);
+                $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+                $profession = $data[4] ?? '';
+                $organization = $data[5] ?? '';
+                $category = 'Participant';
             }
-            mysqli_stmt_close($checkStmt);
+
+            $status = 'Valid';
+            $statusColor = 'green';
+            $notes = '';
+
+            if (empty($email)) {
+                $status = 'Invalid';
+                $statusColor = 'red';
+                $notes = 'Missing Email';
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $status = 'Invalid';
+                $statusColor = 'red';
+                $notes = 'Invalid Email Format';
+            } else {
+                // Check Duplicate
+                $checkStmt = mysqli_prepare($con, "SELECT id FROM users WHERE email = ?");
+                mysqli_stmt_bind_param($checkStmt, "s", $email);
+                mysqli_stmt_execute($checkStmt);
+                mysqli_stmt_store_result($checkStmt);
+                if (mysqli_stmt_num_rows($checkStmt) > 0) {
+                    $status = 'Duplicate';
+                    $statusColor = 'orange';
+                    $notes = 'Email already exists';
+                }
+                mysqli_stmt_close($checkStmt);
+            }
+
+            $previewRows[] = [
+                'fname' => $fname,
+                'lname' => $lname,
+                'fullname' => $fullname,
+                'email' => $email,
+                'profession' => $profession,
+                'organization' => $organization,
+                'category' => $category,
+                'status' => $status,
+                'status_color' => $statusColor,
+                'notes' => $notes
+            ];
+            $count++;
         }
+        
+        fclose($handle);
 
-        $previewRows[] = [
-            'fname' => $fname,
-            'lname' => $lname,
-            'fullname' => $fullname,
-            'email' => $email,
-            'profession' => $profession,
-            'organization' => $organization,
-            'category' => $category,
-            'status' => $status,
-            'status_color' => $statusColor,
-            'notes' => $notes
-        ];
-        $count++;
+        echo json_encode([
+            'status' => 'success',
+            'rows' => $previewRows
+        ], JSON_INVALID_UTF8_SUBSTITUTE);
+
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
-    
-    fclose($handle);
-
-    echo json_encode([
-        'status' => 'success',
-        'rows' => $previewRows
-    ], JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
