@@ -273,7 +273,7 @@ ICPM Organizing Committee</textarea>
                                         <textarea class="form-control" id="msg-template" rows="6">Dear {name},
 
 Thank you for participating in ICPM 2026.
-Please download your certificate here: {certificate_link}
+Please download your ICPM participation certificate here: {certificate_link}
 
 Best regards,
 ICPM Organizing Committee</textarea>

@@ -64,12 +64,13 @@ function logEmailStatus($con, $userId, $email, $subject, $status, $error = null)
     }
 }
 
-// Helper function for HTML Email
 function getHtmlEmail($user) {
-    // Unique ID for footer to prevent collapsing
+    $secret_salt = 'ICPM2026_Secure_Salt';
+    $hash = isset($user['id']) ? md5($user['id'] . $secret_salt) : '';
+    $certLink = isset($user['id']) ? 'https://reg-sys.com/icpm2026/participant/download-certificate.php?id=' . $user['id'] . '&hash=' . $hash : '';
+
     $uniqueId = uniqid();
 
-    // Standardized Footer Content (Bilingual)
     $footerNote = '
     <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; font-size: 13px; color: #555; background-color: #fcfcfc; padding: 15px; border-radius: 4px;">
         <p style="margin: 0 0 10px 0;"><strong>Certificate Support / دعم الشهادات:</strong></p>
@@ -100,7 +101,8 @@ function getHtmlEmail($user) {
                 <h2 style="color: #2c3e50; text-align: center; font-family: Arial, sans-serif; font-size: 22px; font-weight: bold; margin: 20px 0;">Thank you for participating at ICPM 14 - 2026</h2>
                 <p>Dear <strong>' . htmlspecialchars($user['fname'] . ' ' . (isset($user['lname']) ? $user['lname'] : '')) . '</strong>,</p>
                 <p>We sincerely appreciate your participation in the 14th International Conference of pharmacy and medcine (ICPM).</p>
-                <p>We are pleased to provide you with your Certificate of Attendance, which is attached to this email.</p>
+                <p>We are pleased to provide you with your Certificate of Attendance.</p>' .
+                (!empty($certLink) ? '<p>You can download your certificate using the following link:<br><a href="' . htmlspecialchars($certLink) . '">' . htmlspecialchars($certLink) . '</a></p>' : '') . '
                 <p>We hope you found the sessions insightful and valuable.</p>
                 <h2 style="color: #2c3e50; text-align: center; font-family: Arial, sans-serif; font-size: 22px; font-weight: bold; margin: 20px 0;">To activate your certificate please download ICPM Mobile app and login</h2>
                 
@@ -144,6 +146,9 @@ function getHtmlEmail($user) {
 // Helper function for Plain Text Email
 function getPlainTextEmail($user) {
     $name = $user['fname'] . ' ' . (isset($user['lname']) ? $user['lname'] : '');
+    $secret_salt = 'ICPM2026_Secure_Salt';
+    $hash = isset($user['id']) ? md5($user['id'] . $secret_salt) : '';
+    $certLink = isset($user['id']) ? 'https://reg-sys.com/icpm2026/participant/download-certificate.php?id=' . $user['id'] . '&hash=' . $hash : '';
     
     return "International Conference of Pharmacy and Medicine (ICPM)
 
@@ -152,7 +157,9 @@ Thank you for participating at ICPM 14 - 2026
 Dear $name,
 
 We sincerely appreciate your participation in the 14th International Conference of pharmacy and medcine (ICPM).
-We are pleased to provide you with your Certificate of Attendance, which is attached to this email.
+We are pleased to provide you with your Certificate of Attendance.
+You can download your certificate using the following link:
+$certLink
 We hope you found the sessions insightful and valuable.
 
 To activate your certificate please download ICPM Mobile app and login
@@ -511,20 +518,7 @@ if ($action == 'save_template') {
         }
     }
     
-    // Save PDF temporarily
-    $pdfContent = base64_decode($pdfData);
-    $fileName = 'Certificate_' . $uid . '.pdf';
-    $tempPath = sys_get_temp_dir() . '/' . $fileName;
-    file_put_contents($tempPath, $pdfContent);
-    
-    // Send Email using Fallback (Standardized)
-    // PHPMailer code removed to enforce fallback
-    $result = sendFallbackMail($user, $tempPath, $fileName, $con);
-    
-    // Cleanup
-    if (file_exists($tempPath)) {
-        unlink($tempPath);
-    }
+    $result = sendFallbackMail($user, '', '', $con);
 
     if ($result['status'] == 'success') {
         mysqli_begin_transaction($con);
@@ -604,6 +598,7 @@ if ($action == 'save_template') {
     $uid = intval($_POST['uid']);
     $batchId = isset($_POST['batch_id']) ? $_POST['batch_id'] : '';
     $pdfData = isset($_POST['pdf_data']) ? $_POST['pdf_data'] : '';
+    $overrideEmail = isset($_POST['override_email']) ? trim($_POST['override_email']) : '';
     
     // Get User
     $userQuery = mysqli_query($con, "SELECT * FROM users WHERE id='$uid'");
@@ -617,25 +612,17 @@ if ($action == 'save_template') {
         json_response(['status' => 'error', 'message' => 'User not found']);
     }
     
-    // Prepare Attachments
-    $attachments = [];
-    $tempFiles = [];
-
-    // 1. Generated PDF
-    if (!empty($pdfData)) {
-        $pdfContent = base64_decode($pdfData);
-        if ($pdfContent === false) {
-             // throw new Exception("Failed to decode PDF data");
+    // Optional override email (for bulk link mode)
+    if (!empty($overrideEmail)) {
+        if (filter_var($overrideEmail, FILTER_VALIDATE_EMAIL)) {
+            $user['email'] = $overrideEmail;
         } else {
-            $fileName = 'Certificate_' . $uid . '.pdf';
-            $pdfPath = sys_get_temp_dir() . '/' . $fileName;
-            file_put_contents($pdfPath, $pdfContent);
-            $tempFiles[] = $pdfPath;
-            $attachments[] = ['path' => $pdfPath, 'name' => $fileName];
+            json_response(['status' => 'error', 'message' => 'Invalid override email format']);
         }
     }
     
-    // 2. Bulk Files
+    // Prepare Attachments (only shared bulk files, no per-user certificate PDF)
+    $attachments = [];
     if (!empty($batchId)) {
         $uploadDir = sys_get_temp_dir() . '/' . $batchId;
         if (is_dir($uploadDir)) {
@@ -657,37 +644,16 @@ if ($action == 'save_template') {
     $sent = false;
     $error = '';
     
-    // Find main PDF
+    // No certificate PDF attachment; only shared bulk attachments (if any)
     $mainPdfPath = '';
     $mainPdfName = '';
-    $others = [];
-    
-    foreach ($attachments as $att) {
-        if (strpos($att['name'], 'Certificate_') === 0 && substr($att['name'], -4) === '.pdf') {
-            $mainPdfPath = $att['path'];
-            $mainPdfName = $att['name'];
-        } else {
-            $others[] = $att;
-        }
-    }
-    
-    // If no main PDF found (e.g. only bulk files), use the first one as main
-    if (empty($mainPdfPath) && count($others) > 0) {
-        $first = array_shift($others);
-        $mainPdfPath = $first['path'];
-        $mainPdfName = $first['name'];
-    }
+    $others = $attachments;
     
     $result = sendFallbackMail($user, $mainPdfPath, $mainPdfName, $con, $others);
     if ($result['status'] == 'success') {
         $sent = true;
     } else {
         $error = 'Fallback mail failed: ' . $result['message'];
-    }
-
-    // Cleanup generated PDF only (bulk files stay for next user)
-    foreach ($tempFiles as $f) {
-        if (file_exists($f)) unlink($f);
     }
 
     if ($sent) {

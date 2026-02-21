@@ -1,0 +1,15 @@
+DEPLOYMENT INSTRUCTIONS (WEB WHATSAPP BACKEND)
+=============================================
+
+1. Open your cPanel File Manager.
+2. Navigate to the folder: public_html/icpm_webbackend
+3. Upload the following files from this folder:
+   - index.js
+   - package.json
+4. Go to cPanel -> "Setup Node.js App".
+5. Create or edit the "reg-sys.com/icpm_webbackend" Node.js application.
+6. Click the "Run NPM Install" button.
+7. Once installed, click "Restart" to start the service.
+
+Note: Do NOT upload the 'node_modules' folder if you have one locally. Let cPanel install it for you.
+

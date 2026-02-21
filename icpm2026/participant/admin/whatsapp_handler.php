@@ -18,10 +18,18 @@ if (mysqli_num_rows($colCheck) == 0) {
 
 $action = isset($_POST['action']) ? $_POST['action'] : '';
 
-// Auto-detect environment
-// Always use localhost:3000 because PHP and Node are on the same server
-// and we want to bypass public routing/proxy issues.
-$nodeServiceUrl = 'http://127.0.0.1:3000';
+$nodeServiceMode = 'vps';
+$nodeServiceLocal = 'http://127.0.0.1:3000';
+$nodeServiceVps = 'https://regsys.cloud/icpm_webbackend';
+$nodeServiceHostinger = 'https://reg-sys.com/icpm_webbackend';
+
+if ($nodeServiceMode === 'local') {
+    $nodeServiceUrl = $nodeServiceLocal;
+} elseif ($nodeServiceMode === 'vps') {
+    $nodeServiceUrl = $nodeServiceVps;
+} else {
+    $nodeServiceUrl = $nodeServiceHostinger;
+}
 
 function formatWaNumber($phone) {
     // 1. Remove any spaces

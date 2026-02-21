@@ -17,7 +17,7 @@ Write-Host "Zipping project files..." -ForegroundColor Cyan
 if (Test-Path "migration\project.zip") { Remove-Item "migration\project.zip" }
 
 # Exclude list
-$exclude = @("migration", "node_modules", ".git", ".vscode", "temp", "uploads", "*.zip", "*.sql", "icpm_backend")
+$exclude = @("migration", "node_modules", ".git", ".vscode", "temp", "uploads", "*.zip", "*.sql", "icpm_backend", "icpm_webbackend")
 Get-ChildItem -Path "." -Exclude $exclude | Compress-Archive -DestinationPath "migration\project.zip" -Force
 
 # 2. Upload

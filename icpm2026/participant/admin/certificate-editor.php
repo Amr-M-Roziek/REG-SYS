@@ -51,7 +51,7 @@ if (!$isParticipant && !empty($category)) {
 } else {
     // Participant specific text adjustments if needed
     $awardedToText = "This Certificate has been awarded to";
-    $venueText = "Venue: Sharjah Research Technology and Innovation Park UAE<br>This Program has been awarded with total of 11 CPD Credits";
+    $venueText = "Venue: Sharjah Research Technology and Innovation Park UAE<br>This Program has been awarded with total of 21 CPD Credits";
 }
 
 // Verification Logic

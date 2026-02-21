@@ -175,7 +175,7 @@ if (isset($_GET['ajax'])) {
             $hash = md5($row['id'] . $secret_salt);
             $certLink = "https://reg-sys.com/icpm2026/download-certificate.php?id=" . $row['id'] . "&hash=" . $hash;
             $cleanPhone = preg_replace('/[^0-9]/', '', $row['contactno']);
-            $waMsg = "Dear " . $row['fname'] . ", please download your certificate here: " . $certLink;
+            $waMsg = "Dear " . $row['fname'] . ", please download your ICPM participation certificate here: " . $certLink;
             $waUrl = "https://wa.me/" . $cleanPhone . "?text=" . urlencode($waMsg);
             
             $html .= '<a href="' . $waUrl . '" target="_blank" title="Send via WhatsApp" class="btn btn-success btn-xs"><i class="fa fa-comments"></i></a> ';
@@ -746,10 +746,19 @@ echo "<script>alert('Data deleted'); window.location.href='manage-users.php';</s
                                                   
                                                   <hr>
                                                   <h5>Certificate Options</h5>
-                                                  <div class="checkbox">
-                                                      <label>
-                                                          <input type="checkbox" id="use-template" checked> Generate Certificate from Template
-                                                      </label>
+                                                  <div class="form-group">
+                                                      <div class="radio">
+                                                          <label>
+                                                              <input type="radio" name="certificate-mode" id="certificate-mode-links" value="links" checked>
+                                                              Send Certificate Links
+                                                          </label>
+                                                      </div>
+                                                      <div class="radio">
+                                                          <label>
+                                                              <input type="radio" name="certificate-mode" id="certificate-mode-template" value="template">
+                                                              Generate Certificate from Template
+                                                          </label>
+                                                      </div>
                                                   </div>
                                                   
                                                   <div class="form-group" id="template-group">
@@ -943,7 +952,7 @@ echo "<script>alert('Data deleted'); window.location.href='manage-users.php';</s
                                   $hash = md5($row['id'] . $secret_salt);
                                   $certLink = "https://reg-sys.com/icpm2026/participant/download-certificate.php?id=" . $row['id'] . "&hash=" . $hash;
                                   $cleanPhone = preg_replace('/[^0-9]/', '', $row['contactno']);
-                                  $waMsg = "Dear " . $row['fname'] . ", please download your certificate here: " . $certLink;
+                                  $waMsg = "Dear " . $row['fname'] . ", please download your ICPM participation certificate here: " . $certLink;
                                   $waUrl = "https://wa.me/" . $cleanPhone . "?text=" . urlencode($waMsg);
                                   echo '<a href="' . $waUrl . '" target="_blank" title="Send via WhatsApp" class="btn btn-success btn-xs"><i class="fa fa-comments"></i></a> ';
                                   
@@ -1112,10 +1121,15 @@ window.openBulkEmailModal = function() {
     $('#bulkEmailForm').show();
     $('#bulk-progress-container').hide();
     
+    // Default to "Send Certificate Links"
+    $('input[name="certificate-mode"][value="links"]').prop('checked', true);
+    $('input[name="certificate-mode"][value="template"]').prop('checked', false);
+    
     // Preview & Confirmation Reset
     $('#preview-confirm-container').hide();
     $('#confirm-preview').prop('checked', false);
-    $('#btn-start-bulk').show().prop('disabled', true); // Require confirmation first
+    $('#template-group').hide();
+    $('#btn-start-bulk').show().prop('disabled', false);
     $('#preview-template-name').text('No template loaded');
     
     // Clear preview area
@@ -1166,9 +1180,28 @@ $('#btn-cancel-bulk').on('click', function() {
     }
 });
 
-// Checkbox listener for confirmation
+// Checkbox listener for confirmation (template mode only)
 $(document).on('change', '#confirm-preview', function() {
-    $('#btn-start-bulk').prop('disabled', !this.checked);
+    var mode = $('input[name="certificate-mode"]:checked').val() || 'links';
+    if (mode === 'template') {
+        $('#btn-start-bulk').prop('disabled', !this.checked);
+    }
+});
+
+// Certificate mode toggle
+$(document).on('change', 'input[name="certificate-mode"]', function() {
+    var mode = $('input[name="certificate-mode"]:checked').val() || 'links';
+    if (mode === 'template') {
+        $('#template-group').slideDown();
+        $('#preview-confirm-container').hide();
+        $('#confirm-preview').prop('checked', false);
+        $('#btn-start-bulk').prop('disabled', true);
+    } else {
+        $('#template-group').slideUp();
+        $('#preview-confirm-container').hide();
+        $('#confirm-preview').prop('checked', false);
+        $('#btn-start-bulk').prop('disabled', false);
+    }
 });
 
 window.loadTemplatePreview = async function() {
@@ -1223,7 +1256,7 @@ window.loadTemplatePreview = async function() {
 };
 
 window.startBulkProcess = async function() {
-    var useTemplate = $('#use-template').is(':checked');
+    var mode = $('input[name="certificate-mode"]:checked').val() || 'links';
     var templateId = $('#certificate-template').val();
     var delay = parseInt($('#email-delay').val()) || 5;
     
@@ -1241,7 +1274,7 @@ window.startBulkProcess = async function() {
         }
     }
     
-    if (useTemplate && !templateId) {
+    if (mode === 'template' && !templateId) {
         alert('Please select a certificate template');
         return;
     }
@@ -1265,109 +1298,238 @@ window.startBulkProcess = async function() {
         bulkUsers.push($(this).val());
     });
     
-    // Create/Reset Hidden Iframe for Processing
-    const iframeId = 'bulk-process-iframe';
-    let iframe = document.getElementById(iframeId);
-    if (iframe) iframe.remove();
-    
-    iframe = document.createElement('iframe');
-    iframe.id = iframeId;
-    iframe.style.width = '1280px';
-    iframe.style.height = '800px';
-    iframe.style.position = 'fixed';
-    iframe.style.top = '0';
-    iframe.style.left = '0';
-    iframe.style.zIndex = '-9999';
-    iframe.style.opacity = '0';
-    document.body.appendChild(iframe);
-    
-    let processed = 0;
-    let successCount = 0;
-    let failCount = 0;
-    let failedUids = [];
-    
-    for (const uid of bulkUsers) {
-        if (bulkCancelled) break;
+    if (mode === 'template') {
+        // Template mode: use Certificate Editor autogen via hidden iframe
+        const iframeId = 'bulk-process-iframe';
+        let iframe = document.getElementById(iframeId);
+        if (iframe) iframe.remove();
         
-        $('#bulk-status-text').text('Processing user ' + (processed + 1) + ' of ' + bulkUsers.length + ' (ID: ' + uid + ')...');
+        iframe = document.createElement('iframe');
+        iframe.id = iframeId;
+        iframe.style.width = '1280px';
+        iframe.style.height = '800px';
+        iframe.style.position = 'fixed';
+        iframe.style.top = '0';
+        iframe.style.left = '0';
+        iframe.style.zIndex = '-9999';
+        iframe.style.opacity = '0';
+        document.body.appendChild(iframe);
         
-        try {
-            const result = await new Promise((resolve, reject) => {
-                const handler = (event) => {
-                    if (event.data.type === 'CERT_PROCESSED' && event.data.uid == uid) {
-                        window.removeEventListener('message', handler);
-                        resolve(event.data);
-                    }
-                };
-                window.addEventListener('message', handler);
-                
-                // Timeout (45s)
-                const timer = setTimeout(() => {
-                    window.removeEventListener('message', handler);
-                    reject(new Error('Timeout waiting for editor response'));
-                }, 45000);
-                
-                // Trigger Iframe Load
-                var src = 'certificate-editor.php?uid=' + uid + '&template_id=' + templateId + '&autogen=true';
-                if (overrideEmail) {
-                    src += '&override_email=' + encodeURIComponent(overrideEmail);
-                }
-                iframe.src = src;
-            });
+        let processed = 0;
+        let successCount = 0;
+        let failCount = 0;
+        let failedUids = [];
+        
+        for (const uid of bulkUsers) {
+            if (bulkCancelled) break;
             
-            if (result.status === 'success') {
-                addReportRow(processed + 1, 'User ' + uid, 'Sent', 'Success', 'Sent via Editor' + (overrideEmail ? ' (Override)' : ''));
-                successCount++;
-            } else {
-                throw new Error(result.message || 'Error from editor');
+            $('#bulk-status-text').text('Processing user ' + (processed + 1) + ' of ' + bulkUsers.length + ' (ID: ' + uid + ')...');
+            
+            try {
+                const result = await new Promise((resolve, reject) => {
+                    const handler = (event) => {
+                        if (event.data.type === 'CERT_PROCESSED' && event.data.uid == uid) {
+                            window.removeEventListener('message', handler);
+                            resolve(event.data);
+                        }
+                    };
+                    window.addEventListener('message', handler);
+                    
+                    // Timeout (45s)
+                    const timer = setTimeout(() => {
+                        window.removeEventListener('message', handler);
+                        reject(new Error('Timeout waiting for editor response'));
+                    }, 45000);
+                    
+                    // Trigger Iframe Load
+                    var src = 'certificate-editor.php?uid=' + uid + '&template_id=' + templateId + '&autogen=true';
+                    if (overrideEmail) {
+                        src += '&override_email=' + encodeURIComponent(overrideEmail);
+                    }
+                    iframe.src = src;
+                });
+                
+                if (result.status === 'success') {
+                    addReportRow(processed + 1, 'User ' + uid, 'Sent', 'Success', 'Sent via Editor' + (overrideEmail ? ' (Override)' : ''));
+                    successCount++;
+                } else {
+                    throw new Error(result.message || 'Error from editor');
+                }
+                
+            } catch (e) {
+                console.error(e);
+                addReportRow(processed + 1, 'User ' + uid, 'N/A', 'Failed', e.message);
+                failCount++;
+                failedUids.push(uid);
             }
             
-        } catch (e) {
-            console.error(e);
-            addReportRow(processed + 1, 'User ' + uid, 'N/A', 'Failed', e.message);
-            failCount++;
-            failedUids.push(uid);
+            processed++;
+            const pct = Math.round((processed / bulkUsers.length) * 100);
+            $('#bulk-progress-bar').css('width', pct + '%').text(pct + '%');
+            $('#bulk-summary-stats').text('Processed: ' + processed + '/' + bulkUsers.length + ' | Success: ' + successCount + ' | Failed: ' + failCount);
+            
+            if (processed < bulkUsers.length && !bulkCancelled) {
+                 await new Promise(r => setTimeout(r, delay * 1000));
+            }
         }
         
-        processed++;
-        const pct = Math.round((processed / bulkUsers.length) * 100);
-        $('#bulk-progress-bar').css('width', pct + '%').text(pct + '%');
-        $('#bulk-summary-stats').text('Processed: ' + processed + '/' + bulkUsers.length + ' | Success: ' + successCount + ' | Failed: ' + failCount);
+        // Cleanup
+        if (iframe) iframe.remove();
         
-        if (processed < bulkUsers.length && !bulkCancelled) {
-             await new Promise(r => setTimeout(r, delay * 1000));
-        }
-    }
-    
-    // Cleanup
-    if (iframe) iframe.remove();
-    
-    $('#bulk-status-text').text('Completed. Success: ' + successCount + ', Failed: ' + failCount);
-    $('#btn-start-bulk').hide().prop('disabled', false); 
-    $('#btn-cancel-bulk').text('Close').prop('disabled', false);
-    
-    if (failCount > 0) {
-        const retryBtn = $('<button class="btn btn-warning btn-xs" style="margin-left:10px">Retry Failed (' + failCount + ')</button>');
-        retryBtn.click(function() {
-            $('.user-checkbox').prop('checked', false);
-            failedUids.forEach(uid => {
-                $('.user-checkbox[value="' + uid + '"]').prop('checked', true);
+        $('#bulk-status-text').text('Completed. Success: ' + successCount + ', Failed: ' + failCount);
+        $('#btn-start-bulk').hide().prop('disabled', false); 
+        $('#btn-cancel-bulk').text('Close').prop('disabled', false);
+        
+        if (failCount > 0) {
+            const retryBtn = $('<button class="btn btn-warning btn-xs" style="margin-left:10px">Retry Failed (' + failCount + ')</button>');
+            retryBtn.click(function() {
+                $('.user-checkbox').prop('checked', false);
+                failedUids.forEach(uid => {
+                    $('.user-checkbox[value="' + uid + '"]').prop('checked', true);
+                });
+                if(typeof updateBulkButton === 'function') updateBulkButton();
+                else $('#bulk-selection-count-modal').text(failedUids.length + ' users selected');
+                
+                $('#bulk-progress-container').hide();
+                $('#bulkEmailForm').show();
+                $('#btn-start-bulk').show();
+                
+                alert('Failed users selected (' + failedUids.length + '). You can now click "Send Certificates" to retry.');
+                $(this).remove();
             });
-            if(typeof updateBulkButton === 'function') updateBulkButton();
-            else $('#bulk-selection-count-modal').text(failedUids.length + ' users selected');
+            $('#bulk-summary-stats').append(retryBtn);
+        }
+        
+        alert('Bulk sending completed!');
+    } else {
+        // Links mode: send certificate links via send_bulk_single
+        var batchId = 'batch_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+        
+        // Step 1: upload attachments if any
+        var fileInput = document.getElementById('bulk-attachments');
+        if (fileInput && fileInput.files.length > 0) {
+            $('#bulk-status-text').text('Uploading attachments...');
+            var formData = new FormData();
+            formData.append('action', 'prepare_bulk_upload');
+            formData.append('batch_id', batchId);
+            for (var i = 0; i < fileInput.files.length; i++) {
+                formData.append('attachments[]', fileInput.files[i]);
+            }
             
-            $('#bulk-progress-container').hide();
-            $('#bulkEmailForm').show();
-            $('#btn-start-bulk').show();
+            try {
+                await new Promise((resolve, reject) => {
+                    $.ajax({
+                        url: 'ajax_handler.php',
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        dataType: 'json',
+                        success: function(res) {
+                            if (res.status === 'success') resolve(res);
+                            else reject(new Error(res.message || 'Upload failed'));
+                        },
+                        error: function(xhr, status, err) {
+                            reject(new Error(err || 'Network error'));
+                        }
+                    });
+                });
+            } catch (e) {
+                alert('Failed to upload attachments: ' + e.message);
+                $('#btn-start-bulk').prop('disabled', false);
+                $('#btn-cancel-bulk').text('Close').prop('disabled', false);
+                return;
+            }
+        }
+        
+        // Step 2: sending loop
+        let processed = 0;
+        let successCount = 0;
+        let failCount = 0;
+        let failedUids = [];
+        
+        for (const uid of bulkUsers) {
+            if (bulkCancelled) break;
             
-            alert('Failed users selected (' + failedUids.length + '). You can now click "Send Certificates" to retry.');
-            $(this).remove();
-        });
-        $('#bulk-summary-stats').append(retryBtn);
+            $('#bulk-status-text').text('Processing user ' + (processed + 1) + ' of ' + bulkUsers.length + ' (ID: ' + uid + ')...');
+            
+            try {
+                const res = await sendSingleLink(uid, batchId, overrideEmail);
+                if (res.status === 'success') {
+                    addReportRow(processed + 1, 'User ' + uid, overrideEmail || 'User Email', 'Success', 'Sent link email');
+                    successCount++;
+                } else {
+                    addReportRow(processed + 1, 'User ' + uid, overrideEmail || 'User Email', 'Failed', res.message || 'Unknown error');
+                    failCount++;
+                    failedUids.push(uid);
+                }
+            } catch (e) {
+                console.error(e);
+                addReportRow(processed + 1, 'User ' + uid, overrideEmail || 'User Email', 'Failed', e.message);
+                failCount++;
+                failedUids.push(uid);
+            }
+            
+            processed++;
+            const pct = Math.round((processed / bulkUsers.length) * 100);
+            $('#bulk-progress-bar').css('width', pct + '%').text(pct + '%');
+            $('#bulk-summary-stats').text('Processed: ' + processed + '/' + bulkUsers.length + ' | Success: ' + successCount + ' | Failed: ' + failCount);
+            
+            if (processed < bulkUsers.length && !bulkCancelled) {
+                 await new Promise(r => setTimeout(r, delay * 1000));
+            }
+        }
+        
+        $('#bulk-status-text').text('Completed. Success: ' + successCount + ', Failed: ' + failCount);
+        $('#btn-start-bulk').hide().prop('disabled', false); 
+        $('#btn-cancel-bulk').text('Close').prop('disabled', false);
+        
+        if (failCount > 0) {
+            const retryBtn = $('<button class="btn btn-warning btn-xs" style="margin-left:10px">Retry Failed (' + failCount + ')</button>');
+            retryBtn.click(function() {
+                $('.user-checkbox').prop('checked', false);
+                failedUids.forEach(uid => {
+                    $('.user-checkbox[value="' + uid + '"]').prop('checked', true);
+                });
+                if(typeof updateBulkButton === 'function') updateBulkButton();
+                else $('#bulk-selection-count-modal').text(failedUids.length + ' users selected');
+                
+                $('#bulk-progress-container').hide();
+                $('#bulkEmailForm').show();
+                $('#btn-start-bulk').show();
+                
+                alert('Failed users selected (' + failedUids.length + '). You can now click "Send Certificates" to retry.');
+                $(this).remove();
+            });
+            $('#bulk-summary-stats').append(retryBtn);
+        }
+        
+        alert('Bulk sending completed!');
     }
-    
-    alert('Bulk sending completed!');
 };
+
+async function sendSingleLink(uid, batchId, overrideEmail) {
+    return new Promise((resolve) => {
+        $.ajax({
+            url: 'ajax_handler.php',
+            method: 'POST',
+            data: {
+                action: 'send_bulk_single',
+                uid: uid,
+                batch_id: batchId,
+                pdf_data: '',
+                override_email: overrideEmail || ''
+            },
+            dataType: 'json',
+            success: function(res) {
+                resolve(res);
+            },
+            error: function(xhr, status, err) {
+                resolve({ status: 'error', message: 'Ajax error: ' + (err || status) });
+            }
+        });
+    });
+}
 
 // Toggle Override Email Input
 $(document).on('change', '#use-override-email', function() {
