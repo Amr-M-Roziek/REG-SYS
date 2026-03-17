@@ -1,7 +1,6 @@
 <?php
 session_start();
 require_once('dbconnection.php');
-require_once('../session_manager.php');
 
 if (!function_exists('icpm_get_client_ip')) {
     function icpm_get_client_ip() {
@@ -65,138 +64,95 @@ if (isset($_GET['id']) && isset($_GET['hash'])) {
 }
 
 // 2. Fallback: Check for active session if no valid hash provided
-if ($uid == 0) {
-    $session_status = check_session_validity($con);
-    if ($session_status === 'valid') {
-        $uid = $_SESSION['id'];
-        $accessMode = 'session';
-    }
+if ($uid == 0 && isset($_SESSION['id'])) {
+    $uid = $_SESSION['id'];
+    $accessMode = 'session';
 }
 
 if ($uid == 0) {
-    header("Location: login.php");
+    // If no session and no hash, redirect to login or show error
+    header("Location: index.php"); 
     exit();
 }
 
-// Helper function to safely fetch user (Robust DB Connection)
-if (!function_exists('fetchUser')) {
-    function fetchUser($con, $dbName, $userId) {
-        $result = null;
-        try {
-            if (@mysqli_select_db($con, $dbName)) {
-                $q = mysqli_query($con, "SELECT * FROM users WHERE id='$userId'");
-                if ($q && mysqli_num_rows($q) > 0) {
-                    $result = mysqli_fetch_assoc($q);
-                }
-            }
-            
-            if (
-                !$result &&
-                ($dbName === 'regsys_participant' || $dbName === 'regsys_reg' || $dbName === 'regsys_poster26' || $dbName === 'regsys_poster')
-            ) {
-                if ($dbName === 'regsys_participant') {
-                    $targetUser = 'regsys_part';
-                } elseif ($dbName === 'regsys_reg') {
-                    $targetUser = 'regsys_reg';
-                } else {
-                    $targetUser = 'regsys_poster';
-                }
-                $targetPass = 'regsys@2025';
-                
-                $envHost = getenv('DB_HOST');
-                $host = $envHost ? $envHost : 'localhost';
+// Fetch user from poster26 DB
+$query = mysqli_query($con, "SELECT * FROM users WHERE id='$uid'");
+if (!$query || mysqli_num_rows($query) == 0) {
+    die("User data not found.");
+}
+$user = mysqli_fetch_assoc($query);
 
-                $whitelist = array('127.0.0.1','::1','localhost');
-                if (in_array($_SERVER['SERVER_NAME'] ?? 'localhost', $whitelist)) {
-                    $targetUser = 'root';
-                    $targetPass = '';
-                    $host = '127.0.0.1';
-                }
-                
-                $con2 = false;
-                try {
-                    $con2 = @mysqli_connect($host, $targetUser, $targetPass, $dbName);
-                } catch (Exception $e) {}
+// Role Handling (Main vs Co-authors)
+$role = isset($_GET['role']) ? trim($_GET['role']) : 'main';
+$fullName = '';
 
-                if (!$con2) {
-                    try { $con2 = @mysqli_connect('127.0.0.1', 'root', '', $dbName); } catch (Exception $e) {}
-                }
-
-                if ($con2) {
-                    mysqli_set_charset($con2, 'utf8mb4');
-                    $q = mysqli_query($con2, "SELECT * FROM users WHERE id='$userId'");
-                    if ($q && mysqli_num_rows($q) > 0) {
-                        $result = mysqli_fetch_assoc($q);
-                    }
-                    mysqli_close($con2);
-                }
-            }
-        } catch (Exception $e) {}
-        return $result;
+if ($role === 'main') {
+    $fullName = $user['fname'];
+    if (!empty($user['lname'])) {
+        $fullName .= ' ' . $user['lname'];
     }
+} elseif ($role === 'co1') {
+    $fullName = isset($user['coauth1name']) ? $user['coauth1name'] : '';
+} elseif ($role === 'co2') {
+    $fullName = isset($user['coauth2name']) ? $user['coauth2name'] : '';
+} elseif ($role === 'co3') {
+    $fullName = isset($user['coauth3name']) ? $user['coauth3name'] : '';
+} elseif ($role === 'co4') {
+    $fullName = isset($user['coauth4name']) ? $user['coauth4name'] : '';
+} elseif ($role === 'co5') {
+    $fullName = isset($user['coauth5name']) ? $user['coauth5name'] : '';
 }
 
-// 1. Check current DB (participant)
-$user_query = mysqli_query($con, "SELECT * FROM users WHERE id='$uid'");
-$user = mysqli_fetch_array($user_query);
-
-// 2. Check other DBs if not found
-if (!$user) {
-    $user = fetchUser($con, 'regsys_reg', $uid);
-}
-if (!$user) {
-    $user = fetchUser($con, 'regsys_participant', $uid);
-}
-if (!$user) {
-    $user = fetchUser($con, 'regsys_poster26', $uid);
-}
-if (!$user) {
-    $user = fetchUser($con, 'regsys_poster', $uid);
+if (empty($fullName)) {
+    $fullName = "Participant";
 }
 
-if (!$user) {
-    echo "User data not found.";
-    exit();
-}
+icpm_audit_log('certificate_view', array('uid' => (int)$uid, 'access' => $accessMode, 'role' => $role));
 
-icpm_audit_log('certificate_view', array('uid' => (int)$uid, 'access' => $accessMode));
-
-// Prepare dynamic data
-$fullName = $user['fname'] . ' ' . $user['lname'];
 $refNo = $user['id'];
-$category = isset($user['category']) ? $user['category'] : '';
+if ($role !== 'main') {
+    $refNo .= '-' . $role;
+}
+$category = isset($user['category']) ? $user['category'] : 'Poster Presenter';
 
 // Dynamic Certificate Content based on Category
+// Defaulting to generic participation text
 $certTitle = "Certificate of Participation";
 $orgText = "A Conference Organized by ICPM";
-$awardedToText = "This Certificate is awarded to"; // Default
-$contributionText = "For successful participation and attendance at \"ICPM 2026\""; // Default
-$confTitle = "the 14th International Conference of Pharmacy and Medicine (ICPM)"; // Default
+$awardedToText = "This Certificate is awarded to"; 
+$contributionText = "For successful participation and attendance at \"ICPM 2026\""; 
+$confTitle = "the 14th International Conference of Pharmacy and Medicine (ICPM)"; 
 $entitledText = "Entitled";
 $topicText = "Building a Culture of Innovation and Technology in Healthcare";
 $dateText = "Held on 20th – 22nd January 2026";
 $venueText = "Venue: Sharjah Research Technology and Innovation Park UAE<br>This Program has been awarded with total of 21 CPD Credits";
-$accreditationText = "Accreditation Code EHS/CPD/26/068";
+
+$compCategory = (!empty($category) && stripos($category, 'Scientific') !== false) ? "Scientific Competition" : "Poster Competition";
+$accreditationText = "ICPM 2026 " . $compCategory;
 
 $isParticipant = (stripos($category, 'Participant') !== false);
 
+// Logic for custom text if needed (e.g. for Poster presenters)
 if (!$isParticipant && !empty($category)) {
-    // Custom text for Non-Participants (Speakers, Exhibitors, etc.)
     $awardedToText = "This Certificate is awarded to";
-    $contributionText = "In Gratitude for the outstanding Contribution as " . htmlspecialchars($category);
+    $contributionText = "In gratitude for your outstanding contribution as a participant in the " . $compCategory . ".";
+
     $confTitle = "At the 14th International Conference of Pharmacy and Medicine";
     $venueText = "Venue at Sharjah SRTIP United Arab of Emirates";
 } else {
-    // Participant specific text adjustments
     $awardedToText = "This Certificate has been awarded to";
     $venueText = "Venue: Sharjah Research Technology and Innovation Park UAE<br>This Program has been awarded with total of 21 CPD Credits";
 }
 
-// Verification Logic
+// Verification Link
 $secret_salt = 'ICPM2026_Secure_Salt';
 $hash = md5($user['id'] . $secret_salt);
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-$verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id=" . $user['id'] . "&hash=" . $hash;
+$verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/poster26/verify.php?id=" . $user['id'] . "&hash=" . $hash;
+if ($role !== 'main') {
+    $verificationLink .= "&role=" . $role;
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -215,9 +171,6 @@ $verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
-        body {
-            font-family: 'Times New Roman', serif;
-        }
         body {
             background: #f0f2f5;
             font-family: 'Open Sans', sans-serif;
@@ -394,7 +347,7 @@ $verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id
             max-width: 270px;
         }
 
-        <?php if ($isParticipant): ?>
+        /* PARTICIPANT TEMPLATE STYLES (Used for Poster as well now) */
         #logo-left { top: 40px; left: 40px; }
         #logo-center { top: 55px; left: 50%; transform: translateX(-50%); width: 3000px; }
         #logo-right { top: 40px; right: 40px; }
@@ -521,154 +474,6 @@ $verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id
 
         #entitled-text, #topic-text, #footer-logo-left, #sig-right-group { display: none; }
 
-        <?php else: ?>
-        /* --- EXHIBITOR/SPEAKER/OTHER TEMPLATE STYLES --- */
-        #logo-left { top: 30px; left: 30px; width: 165px; }
-        #logo-right { top: 30px; right: 30px; width: 165px; }
-        
-        #title-header {
-            top: 50px;
-            width: 100%;
-            font-size: 36px;
-            color: #000;
-            font-weight: 400;
-            text-align: center;
-        }
-
-        #org-text {
-            top: 90px;
-            width: 100%;
-            font-size: 16px;
-            font-weight: bold;
-            color: #000;
-        }
-
-        #awarded-to {
-            top: 140px;
-            width: 100%;
-            font-size: 20px;
-            font-weight: bold;
-            color: #000;
-        }
-
-        #recipient-name {
-            top: 180px;
-            width: 100%;
-            font-size: 48px;
-            font-weight: bold;
-            font-family: 'Times New Roman', serif;
-            color: #e91e63; /* Pink/Red */
-        }
-
-        #participation-text {
-            top: 260px;
-            width: 100%;
-            font-size: 18px;
-            font-weight: bold;
-            color: #000;
-        }
-
-        #conference-title {
-            top: 300px;
-            width: 100%;
-            font-size: 22px;
-            font-weight: bold;
-            color: #000;
-        }
-
-        #logo-center { 
-            top: 350px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            width: 120px; 
-        }
-
-        #entitled-text {
-            top: 440px;
-            width: 100%;
-            font-size: 16px;
-            font-weight: bold;
-            color: #000;
-        }
-
-        #topic-text {
-            top: 470px;
-            width: 100%;
-            font-size: 20px;
-            font-weight: bold;
-            color: #00bcd4; /* Cyan/Blue */
-        }
-
-        #date-text {
-            top: 530px;
-            width: 100%;
-            font-size: 18px;
-            font-weight: bold;
-            color: #000;
-        }
-
-        #venue-text {
-            top: 570px;
-            width: 100%;
-            font-size: 16px;
-            font-weight: bold;
-            color: #000;
-        }
-        
-        #accreditation-text {
-            display: none;
-            top: 620px;
-            width: 100%;
-            font-size: 14px;
-            color: #777;
-        }
-
-        /* Footer Elements */
-        #footer-logo-left {
-            bottom: 40px;
-            left: 50px;
-            width: 200px;
-        }
-
-        #sig-right-group {
-            bottom: 40px;
-            right: 50px;
-            text-align: center;
-        }
-        
-        #sig-right-img { position: relative; width: 150px; display: block; margin: 0 auto; }
-        #sig-right-text { position: relative; margin-top: 5px; font-weight: bold; }
-        #icpm-stamp-right { position: absolute; bottom: 20px; right: 0; width: 140px; opacity: 0.9; z-index: 1; }
-
-        #qr-code-container {
-            bottom: 50px;
-            left: 300px;
-            width: 80px;
-            height: 80px;
-            z-index: 10;
-        }
-
-        #ref-no {
-            bottom: 15px;
-            right: 20px;
-            width: auto;
-            font-size: 11px;
-            color: #777;
-            text-align: right;
-        }
-
-        #verification-text {
-            bottom: 40px;
-            left: 0;
-            width: 100%;
-            font-size: 11px;
-            color: #555;
-        }
-
-        /* Hide elements not in this template */
-        #sig-left, #sig-center { display: none; }
-        <?php endif; ?>
-
         @media max-width {
              /* Scale down for mobile view if needed, but keeping it fixed size for now */
         }
@@ -695,19 +500,11 @@ $verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id
 
             <!-- Logos -->
             <div id="logo-left" class="cert-element">
-                <?php if ($isParticipant): ?>
-                <img src="../admin/assets/img/rakmhsu-logo.png" class="cert-logo" alt="RAKMHSU Logo">
-                <?php else: ?>
-                <img src="admin/assets/img/icpm-stamp.png" class="cert-logo" alt="Stamp 1">
-                <?php endif; ?>
+                <img src="../admin/assets/img/icpm-certified-badge.png" class="cert-logo" alt="Certified Badge">
             </div>
             
             <div id="logo-right" class="cert-element">
-                 <?php if ($isParticipant): ?>
                  <img src="../admin/assets/img/icpm-certified-badge.png" class="cert-logo" alt="Certified Badge">
-                 <?php else: ?>
-                 <img src="../admin/assets/img/icpm-stamp.png" class="cert-logo" alt="Stamp 2">
-                 <?php endif; ?>
             </div>
 
             <!-- Text Content -->
@@ -724,11 +521,7 @@ $verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id
             </div>
 
             <div id="recipient-name" class="cert-element">
-                <?php if ($isParticipant): ?>
                 « <?php echo htmlspecialchars($fullName); ?> »
-                <?php else: ?>
-                <?php echo htmlspecialchars($fullName); ?>
-                <?php endif; ?>
             </div>
 
             <div id="participation-text" class="cert-element">
@@ -763,52 +556,23 @@ $verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id
                  <?php echo $accreditationText; ?>
             </div>
 
-            <!-- Signatures (Participant) -->
-            <div id="sig-left" class="cert-element">
-                <img src="../admin/assets/img/sig-prof-omer.png" alt="Prof. Omer Signature" style="height: 60px; display: block; margin: 0 auto 5px;">
-                <strong>Prof. Omer Eladil Abdalla Hamid</strong><br>
-                RAKMHSU
+            <!-- Signatures -->
+
+
+            <div id="icpm-stamp-right" class="cert-element">
+                 <img src="../admin/assets/img/icpm-oval-stamp.png" alt="ICPM Stamp" style="width: 220px; height: auto;">
             </div>
 
-            <div id="sig-center" class="cert-element">
-                 <img src="../images/icpm-logo.png" style="width: 80px; opacity: 0.8;" alt="Stamp">
+            <div id="sig-right-img" class="cert-element">
+                 <img src="../admin/assets/img/sig-dr-muneer.png" alt="Signature" style="width: 150px; height: auto;">
             </div>
 
-            <!-- Footer (Non-Participant) -->
-            <div id="footer-logo-left" class="cert-element">
-                 <img src="../images/icpm-logo.png" style="width: 100%;" alt="ICPM Logo Footer">
-            </div>
-
-            <div id="sig-right-group" class="cert-element">
-                <div id="icpm-stamp-right">
-                    <img src="../admin/assets/img/icpm-stamp-blue.png" style="width: 100%; height: auto;" alt="Stamp">
-                </div>
-                <div id="sig-right-img">
-                    <img src="../admin/assets/img/dr-muneer-signature.png" alt="Signature" style="width: 100%; height: auto;">
-                </div>
-                <div id="sig-right-text">
-                    Dr. Muneer Rayan<br>
-                    <span style="font-size: 0.8em; font-weight: normal;">Al Madinah Al Dwalia Exhibitions and<br>Conference Management</span><br>
-                    ICPM
-                </div>
-            </div>
-
-            <?php if ($isParticipant): ?>
-                 <div id="icpm-stamp-right" class="cert-element">
-                     <img src="../admin/assets/img/icpm-oval-stamp.png" alt="ICPM Stamp" style="width: 220px; height: auto;">
+            <div id="sig-right-text" class="cert-element">
+                 <div style="font-family: 'Times New Roman', serif; font-size: 12pt; color: #000;">
+                     <strong>Dr. Muneer Rayan</strong><br>
+                     ICPM
                  </div>
-
-                 <div id="sig-right-img" class="cert-element">
-                     <img src="../admin/assets/img/sig-dr-muneer.png" alt="Signature" style="width: 150px; height: auto;">
-                 </div>
-
-                 <div id="sig-right-text" class="cert-element">
-                     <div style="font-family: 'Times New Roman', serif; font-size: 12pt; color: #000;">
-                         <strong>Dr. Muneer Rayan</strong><br>
-                         ICPM
-                     </div>
-                 </div>
-            <?php endif; ?>
+            </div>
 
             <div id="qr-code-container" class="cert-element"></div>
 
@@ -827,10 +591,11 @@ $verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id
         const verificationLink = "<?php echo $verificationLink; ?>";
         const userId = <?php echo (int)$refNo; ?>;
         const publicToken = "<?php echo isset($_GET['hash']) ? $_GET['hash'] : $hash; ?>";
+        const certificateRole = "<?php echo htmlspecialchars($role, ENT_QUOTES); ?>";
         const auditEndpoint = window.location.href.split('#')[0];
         const ICPM_APP_STORE_URL = "https://apps.apple.com/ae/app/icpm/id6757741792";
         const ICPM_ANDROID_URL = "https://regsys.cloud/download.html";
-        const ICPM_DEEP_LINK = "icpm://open?target=certificate&id=" + encodeURIComponent(String(userId)) + "&hash=" + encodeURIComponent(String(publicToken));
+        const ICPM_DEEP_LINK = "icpm://open?target=certificate&id=" + encodeURIComponent(String(userId)) + "&hash=" + encodeURIComponent(String(publicToken)) + "&role=" + encodeURIComponent(String(certificateRole));
         
         new QRCode(qrContainer, {
             text: verificationLink,
@@ -868,7 +633,8 @@ $verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id
                 payload.append('action', 'audit');
                 payload.append('event', String(eventName));
                 payload.append('data', JSON.stringify(Object.assign({
-                    uid: userId
+                    uid: userId,
+                    role: certificateRole
                 }, data || {})));
                 if (navigator.sendBeacon) {
                     navigator.sendBeacon(auditEndpoint, payload);
@@ -1105,6 +871,7 @@ $verificationLink = $protocol . $_SERVER['HTTP_HOST'] . "/icpm2026/verify.php?id
                 const formData = new FormData();
                 formData.append('action', 'send_certificate');
                 formData.append('uid', userId);
+                formData.append('role', '<?php echo $role; ?>');
                 formData.append('pdf_data', pdfBase64);
                 formData.append('token', publicToken);
                 return fetch('admin/ajax_handler.php', {

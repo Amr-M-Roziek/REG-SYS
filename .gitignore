@@ -9,6 +9,7 @@ Thumbs.db
 error_log
 debug.log
 php-error.log
+debug_log.txt
 
 # Temporary/Sensitive files
 icpm2026/temp/sites.xml
@@ -19,6 +20,12 @@ retry_ftp_upload.bat
 deploy_to_cloud.ps1
 cookie.txt
 cookies_*.txt
+*.swp
+*.swo
+
+# Local debug utilities
+debug_db.php
+phpinfo.php
 
 # Dependencies
 node_modules/
@@ -27,3 +34,12 @@ vendor/
 # Config
 .env
 wp-config.php
+
+# OS/PHP runtime configs
+.user.ini
+php.ini
+
+# Archives / large artifacts
+*.zip
+*.7z
+*.rar

@@ -1,9 +1,13 @@
 <?php
+ob_start();
+error_reporting(0);
+ini_set('display_errors', 0);
 require_once 'session_setup.php';
 include 'dbconnection.php';
 
 // Check session
 if (!isset($_SESSION['id']) || strlen($_SESSION['id']) == 0) {
+    ob_clean();
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit();
 }
@@ -43,7 +47,25 @@ function logEmailStatus($con, $userId, $email, $subject, $status, $error = null)
 }
 
 // Helper function for HTML Email
-function getHtmlEmail($user) {
+function getHtmlEmail($user, $role = 'main') {
+    // Determine Name based on Role
+    $fullName = $user['fname'] . ' ' . (isset($user['lname']) ? $user['lname'] : '');
+    if ($role !== 'main' && strpos($role, 'co') === 0) {
+        $idx = substr($role, 2); // e.g. 1 from co1
+        if (isset($user['coauth'.$idx.'name']) && !empty($user['coauth'.$idx.'name'])) {
+            $fullName = $user['coauth'.$idx.'name'];
+        }
+    }
+
+    // Certificate Link Generation
+    $secret_salt = 'ICPM2026_Secure_Salt';
+    $hash = isset($user['id']) ? md5($user['id'] . $secret_salt) : '';
+    // Use poster26 specific path
+    $certLink = isset($user['id']) ? 'https://reg-sys.com/icpm2026/poster26/download-certificate.php?id=' . $user['id'] . '&hash=' . $hash : '';
+    if ($role !== 'main') {
+        $certLink .= '&role=' . $role;
+    }
+
     // Unique ID for footer to prevent collapsing
     $uniqueId = uniqid();
 
@@ -51,8 +73,8 @@ function getHtmlEmail($user) {
     $footerNote = '
     <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; font-size: 13px; color: #555; background-color: #fcfcfc; padding: 15px; border-radius: 4px;">
         <p style="margin: 0 0 10px 0;"><strong>Certificate Support / دعم الشهادات:</strong></p>
-        <p style="margin: 0 0 10px 0;">If you experience any display issues with the certificate or require a name correction, please contact us via WhatsApp at <a href="https://wa.me/971529936233" style="color: #d4af37; text-decoration: none; font-weight: bold;">00971529936233</a> or email <a href="mailto:support@regsys.cloud" style="color: #d4af37; text-decoration: none; font-weight: bold;">support@regsys.cloud</a>. Kindly allow 48-72 hours for us to process your request and make the necessary corrections.</p>
-        <p style="margin: 0; direction: rtl; text-align: right; font-family: Tahoma, Arial, sans-serif;">إذا واجهت أي مشاكل في عرض الشهادة أو كنت بحاجة إلى تصحيح الاسم، يرجى التواصل معنا عبر واتساب على الرقم <a href="https://wa.me/971529936233" style="color: #d4af37; text-decoration: none; font-weight: bold;">00971529936233</a> أو عبر البريد الإلكتروني <a href="mailto:support@regsys.cloud" style="color: #d4af37; text-decoration: none; font-weight: bold;">support@regsys.cloud</a>. يرجى منحنا 48-72 ساعة لمعالجة طلبك وإجراء التصحيحات اللازمة.</p>
+        <p style="margin: 0 0 10px 0;">If you experience any display issues with the certificate or require a name correction, please contact us via WhatsApp at <a href="https://wa.me/971529936233" style="color: #d4af37; text-decoration: none; font-weight: bold;">00971529936233</a> or email <a href="mailto:support@reg-sys.com" style="color: #d4af37; text-decoration: none; font-weight: bold;">support@reg-sys.com</a>. Kindly allow 48-72 hours for us to process your request and make the necessary corrections.</p>
+        <p style="margin: 0; direction: rtl; text-align: right; font-family: Tahoma, Arial, sans-serif;">إذا واجهت أي مشاكل في عرض الشهادة أو كنت بحاجة إلى تصحيح الاسم، يرجى التواصل معنا عبر واتساب على الرقم <a href="https://wa.me/971529936233" style="color: #d4af37; text-decoration: none; font-weight: bold;">00971529936233</a> أو عبر البريد الإلكتروني <a href="mailto:support@reg-sys.com" style="color: #d4af37; text-decoration: none; font-weight: bold;">support@reg-sys.com</a>. يرجى منحنا 48-72 ساعة لمعالجة طلبك وإجراء التصحيحات اللازمة.</p>
     </div>';
 
     // Images are now embedded via CID
@@ -77,9 +99,10 @@ function getHtmlEmail($user) {
             </div>
             <div class="content">
                 <h2 style="color: #2c3e50; text-align: center; font-family: Arial, sans-serif; font-size: 22px; font-weight: bold; margin: 20px 0;">Thank you for participating at ICPM 14 - 2026</h2>
-                <p>Dear <strong>' . htmlspecialchars($user['fname'] . ' ' . (isset($user['lname']) ? $user['lname'] : '')) . '</strong>,</p>
+                <p>Dear <strong>' . htmlspecialchars($fullName) . '</strong>,</p>
                 <p>We sincerely appreciate your participation in the 14th International Conference of pharmacy and medcine (ICPM).</p>
-                <p>We are pleased to provide you with your Certificate of Attendance, which is attached to this email.</p>
+                <p>We are pleased to provide you with your Certificate of Attendance.</p>' .
+                (!empty($certLink) ? '<p>You can download your certificate using the following link:<br><a href="' . htmlspecialchars($certLink) . '">' . htmlspecialchars($certLink) . '</a></p>' : '') . '
                 <p>We hope you found the sessions insightful and valuable.</p>
                 <h2 style="color: #2c3e50; text-align: center; font-family: Arial, sans-serif; font-size: 22px; font-weight: bold; margin: 20px 0;">To activate your certificate please download ICPM Mobile app and login</h2>
                 
@@ -121,8 +144,22 @@ function getHtmlEmail($user) {
 }
 
 // Helper function for Plain Text Email
-function getPlainTextEmail($user) {
+function getPlainTextEmail($user, $role = 'main') {
     $name = $user['fname'] . ' ' . (isset($user['lname']) ? $user['lname'] : '');
+    if ($role !== 'main' && strpos($role, 'co') === 0) {
+        $idx = substr($role, 2);
+        if (isset($user['coauth'.$idx.'name']) && !empty($user['coauth'.$idx.'name'])) {
+            $name = $user['coauth'.$idx.'name'];
+        }
+    }
+
+    $secret_salt = 'ICPM2026_Secure_Salt';
+    $hash = isset($user['id']) ? md5($user['id'] . $secret_salt) : '';
+    // Use poster26 specific path
+    $certLink = isset($user['id']) ? 'https://reg-sys.com/icpm2026/poster26/download-certificate.php?id=' . $user['id'] . '&hash=' . $hash : '';
+    if ($role !== 'main') {
+        $certLink .= '&role=' . $role;
+    }
     
     return "International Conference of Pharmacy and Medicine (ICPM)
 
@@ -131,7 +168,9 @@ Thank you for participating at ICPM 14 - 2026
 Dear $name,
 
 We sincerely appreciate your participation in the 14th International Conference of pharmacy and medcine (ICPM).
-We are pleased to provide you with your Certificate of Attendance, which is attached to this email.
+We are pleased to provide you with your Certificate of Attendance.
+You can download your certificate using the following link:
+$certLink
 We hope you found the sessions insightful and valuable.
 
 To activate your certificate please download ICPM Mobile app and login
@@ -150,9 +189,9 @@ Best Regards,
 ICPM Organizing Committee
 
 --------------------------------------------------
-If you experience any display issues with the certificate or require a name correction, please contact us via WhatsApp at 00971529936233 or email support@regsys.cloud. Kindly allow 48-72 hours for us to process your request and make the necessary corrections.
+If you experience any display issues with the certificate or require a name correction, please contact us via WhatsApp at 00971529936233 or email support@reg-sys.com. Kindly allow 48-72 hours for us to process your request and make the necessary corrections.
 
-إذا واجهت أي مشاكل في عرض الشهادة أو كنت بحاجة إلى تصحيح الاسم، يرجى التواصل معنا عبر واتساب على الرقم 00971529936233 أو عبر البريد الإلكتروني support@regsys.cloud. يرجى منحنا 48-72 ساعة لمعالجة طلبك وإجراء التصحيحات اللازمة.
+إذا واجهت أي مشاكل في عرض الشهادة أو كنت بحاجة إلى تصحيح الاسم، يرجى التواصل معنا عبر واتساب على الرقم 00971529936233 أو عبر البريد الإلكتروني support@reg-sys.com. يرجى منحنا 48-72 ساعة لمعالجة طلبك وإجراء التصحيحات اللازمة.
 --------------------------------------------------
 
 (c) 2026 International Conference of Pharmacy and Medicine. All rights reserved.
@@ -161,8 +200,8 @@ www.icpm.ae
 }
 
 // Helper function to generate MIME message (Separated for testing)
-function generateMimeMessage($user, $attachmentPath, $attachmentName, $extraAttachments = []) {
-    $fromAddr = getenv('SMTP_FROM') ?: 'ICPM@regsys.cloud';
+function generateMimeMessage($user, $attachmentPath, $attachmentName, $extraAttachments = [], $role = 'main') {
+    $fromAddr = getenv('SMTP_FROM') ?: 'ICPM@reg-sys.com';
     $fromName = getenv('SMTP_FROM_NAME') ?: 'ICPM 2026';
     
     // Boundaries
@@ -186,13 +225,13 @@ function generateMimeMessage($user, $attachmentPath, $attachmentName, $extraAtta
     $message .= "--" . $boundaryAlt . $eol;
     $message .= "Content-Type: text/plain; charset=\"UTF-8\"" . $eol;
     $message .= "Content-Transfer-Encoding: 8bit" . $eol . $eol;
-    $message .= getPlainTextEmail($user) . $eol . $eol;
+    $message .= getPlainTextEmail($user, $role) . $eol . $eol;
     
     // 2b. HTML Content
     $message .= "--" . $boundaryAlt . $eol;
     $message .= "Content-Type: text/html; charset=\"UTF-8\"" . $eol;
     $message .= "Content-Transfer-Encoding: 8bit" . $eol . $eol;
-    $message .= getHtmlEmail($user) . $eol . $eol;
+    $message .= getHtmlEmail($user, $role) . $eol . $eol;
     
     // End Alternative
     $message .= "--" . $boundaryAlt . "--" . $eol;
@@ -235,15 +274,15 @@ function generateMimeMessage($user, $attachmentPath, $attachmentName, $extraAtta
 }
 
 // Helper function for Fallback Email (mail()) with Inline Images
-function sendFallbackMail($user, $attachmentPath, $attachmentName, $con = null, $extraAttachments = []) {
+function sendFallbackMail($user, $attachmentPath, $attachmentName, $con = null, $extraAttachments = [], $role = 'main') {
     $to = $user['email'];
     $subject = 'Your ICPM 2026 Certificate';
     
     // Generate the MIME content
-    $mime = generateMimeMessage($user, $attachmentPath, $attachmentName, $extraAttachments);
+    $mime = generateMimeMessage($user, $attachmentPath, $attachmentName, $extraAttachments, $role);
     
-    // Send
-    $sent = mail($to, $subject, $mime['body'], $mime['headers']);
+    // Send - Suppress warnings to avoid JSON corruption
+    $sent = @mail($to, $subject, $mime['body'], $mime['headers']);
     
     if ($sent) {
         if ($con && isset($user['id'])) {
@@ -264,6 +303,7 @@ if ($action == 'save_template') {
     $data = mysqli_real_escape_string($con, $_POST['data']);
     
     if (empty($name) || empty($data)) {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Name and data required']);
         exit;
     }
@@ -278,6 +318,7 @@ if ($action == 'save_template') {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )";
         if (!mysqli_query($con, $createSql)) {
+            ob_clean();
             echo json_encode(['status' => 'error', 'message' => 'Table creation failed: ' . mysqli_error($con)]);
             exit;
         }
@@ -296,8 +337,10 @@ if ($action == 'save_template') {
     }
     
     if ($query) {
+        ob_clean();
         echo json_encode(['status' => 'success', 'message' => $msg]);
     } else {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Database error: ' . mysqli_error($con)]);
     }
     
@@ -306,8 +349,10 @@ if ($action == 'save_template') {
     $query = mysqli_query($con, "DELETE FROM certificate_templates WHERE id='$id'");
     
     if ($query) {
+        ob_clean();
         echo json_encode(['status' => 'success', 'message' => 'Template deleted successfully']);
     } else {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Database error: ' . mysqli_error($con)]);
     }
 
@@ -319,6 +364,7 @@ if ($action == 'save_template') {
             $templates[] = $row;
         }
     }
+    ob_clean();
     echo json_encode(['status' => 'success', 'data' => $templates]);
 
 } elseif ($action == 'load_template_by_name') {
@@ -327,8 +373,10 @@ if ($action == 'save_template') {
     $template = mysqli_fetch_assoc($query);
     
     if ($template) {
+        ob_clean();
         echo json_encode(['status' => 'success', 'data' => $template]);
     } else {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Template not found']);
     }
 
@@ -381,8 +429,38 @@ if ($action == 'save_template') {
             }
         }
 
+        // HOTFIX: Generic Category Fix
+        $data = json_decode($template['data'], true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+            $modified = false;
+            foreach ($data as &$element) {
+                $content = strip_tags($element['content'] ?? '');
+                $isCategoryVar = (isset($element['dataVariable']) && $element['dataVariable'] === 'category');
+                $isSpeakerText = (stripos($content, 'Speaker') !== false);
+                
+                if ($isCategoryVar || $isSpeakerText) {
+                    if (stripos($content, 'In Gratitude') === false) {
+                        $element['content'] = 'In gratitude for your outstanding contribution as a participant in the {competition_category}.';
+                        $element['dataVariable'] = 'competition_category';
+                        $element['dataTemplate'] = 'In gratitude for your outstanding contribution as a participant in the {competition_category}.';
+                        $modified = true;
+                    } elseif (stripos($content, 'In Gratitude') !== false && stripos($content, '{competition_category}') === false) {
+                        $element['content'] = 'In gratitude for your outstanding contribution as a participant in the {competition_category}.';
+                        $element['dataVariable'] = 'competition_category';
+                        $element['dataTemplate'] = 'In gratitude for your outstanding contribution as a participant in the {competition_category}.';
+                        $modified = true;
+                    }
+                }
+            }
+            if ($modified) {
+                $template['data'] = json_encode($data);
+            }
+        }
+
+        ob_clean();
         echo json_encode(['status' => 'success', 'data' => $template]);
     } else {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'No templates found']);
     }
 
@@ -429,8 +507,15 @@ if ($action == 'save_template') {
                 if ($isCategoryVar || $isSpeakerText) {
                     // Prevent double prefixing if already applied
                     if (stripos($content, 'In Gratitude') === false) {
-                        $element['content'] = 'In Gratitude for the outstanding Contribution as {category}';
-                        $element['dataVariable'] = 'category';
+                        $element['content'] = 'In gratitude for your outstanding contribution as a participant in the {competition_category}.';
+                        $element['dataVariable'] = 'competition_category';
+                        $element['dataTemplate'] = 'In gratitude for your outstanding contribution as a participant in the {competition_category}.';
+                        $modified = true;
+                    } elseif (stripos($content, 'In Gratitude') !== false && stripos($content, '{competition_category}') === false) {
+                        // Update old phrasing or force dynamic template
+                        $element['content'] = 'In gratitude for your outstanding contribution as a participant in the {competition_category}.';
+                        $element['dataVariable'] = 'competition_category';
+                        $element['dataTemplate'] = 'In gratitude for your outstanding contribution as a participant in the {competition_category}.';
                         $modified = true;
                     }
                 }
@@ -439,8 +524,10 @@ if ($action == 'save_template') {
                 $template['data'] = json_encode($data);
             }
         }
+        ob_clean();
         echo json_encode(['status' => 'success', 'data' => $template]);
     } else {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Template not found']);
     }
 
@@ -448,43 +535,97 @@ if ($action == 'save_template') {
     $uid = isset($_POST['user_id']) ? intval($_POST['user_id']) : intval($_POST['uid']);
     $status = intval($_POST['status']);
     
-    $stmt = mysqli_prepare($con, "UPDATE users SET certificate_sent=? WHERE id=?");
-    mysqli_stmt_bind_param($stmt, 'ii', $status, $uid);
-    
-    if (mysqli_stmt_execute($stmt)) {
-        echo json_encode(['status' => 'success', 'message' => 'Status updated']);
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Database update failed']);
+    try {
+        $stmt = mysqli_prepare($con, "UPDATE users SET certificate_sent=? WHERE id=?");
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, 'ii', $status, $uid);
+            if (mysqli_stmt_execute($stmt)) {
+                ob_clean();
+                echo json_encode(['status' => 'success', 'message' => 'Status updated']);
+            } else {
+                throw new Exception(mysqli_stmt_error($stmt));
+            }
+        } else {
+            throw new Exception(mysqli_error($con));
+        }
+    } catch (Exception $e) {
+        // Check for missing column error (1054)
+        if (strpos($e->getMessage(), "Unknown column 'certificate_sent'") !== false || $e->getCode() == 1054) {
+             // Self-healing: Add column
+             mysqli_query($con, "ALTER TABLE users ADD COLUMN certificate_sent INT DEFAULT 0");
+             // Retry
+             $stmt = mysqli_prepare($con, "UPDATE users SET certificate_sent=? WHERE id=?");
+             if ($stmt) {
+                 mysqli_stmt_bind_param($stmt, 'ii', $status, $uid);
+                 if (mysqli_stmt_execute($stmt)) {
+                     ob_clean();
+                     echo json_encode(['status' => 'success', 'message' => 'Status updated (Schema fixed)']);
+                     exit;
+                 }
+             }
+        }
+        
+        ob_clean();
+        echo json_encode(['status' => 'error', 'message' => 'Update failed: ' . $e->getMessage()]);
     }
     exit;
 
 } elseif ($action == 'send_certificate') {
     $uid = intval($_POST['uid']);
+    $role = isset($_POST['role']) ? trim($_POST['role']) : 'main';
     $pdfData = $_POST['pdf_data'];
     
     if ($uid == 0 || empty($pdfData)) {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Invalid data']);
         exit;
     }
     
     // Get User Email
-    $userQuery = mysqli_query($con, "SELECT * FROM users WHERE id='$uid'");
+    // Select specific columns to avoid large blobs
+    $columns = "id, fname, lname, email, contactno, 
+                coauth1name, coauth1email, coauth1nationality,
+                coauth2name, coauth2email, coauth2nationality,
+                coauth3name, coauth3email, coauth3nationality,
+                coauth4name, coauth4email, coauth4nationality,
+                coauth5name, coauth5email, coauth5nationality,
+                supervisor_name, supervisor_email, supervisor_contact, supervisor_nationality,
+                profession, organization, postertitle, category, posting_date, source_system,
+                abstract_filename, companyref, paypalref, userip, password";
+    $userQuery = mysqli_query($con, "SELECT $columns FROM users WHERE id='$uid'");
     $user = mysqli_fetch_assoc($userQuery);
     
     if (!$user) {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'User not found']);
         exit;
     }
 
+    // Role-based Email Selection
+    require_once __DIR__ . '/email_helper.php';
+
     // Override Email Logic
     $overrideEmail = isset($_POST['override_email']) ? trim($_POST['override_email']) : '';
-    if (!empty($overrideEmail)) {
-        if (filter_var($overrideEmail, FILTER_VALIDATE_EMAIL)) {
-            $user['email'] = $overrideEmail; // Override the email for sending
-        } else {
-             echo json_encode(['status' => 'error', 'message' => 'Invalid override email address']);
-             exit;
+    $useOverride = false;
+    if (!empty($overrideEmail) && filter_var($overrideEmail, FILTER_VALIDATE_EMAIL)) {
+        $useOverride = true;
+    } elseif (!empty($overrideEmail)) {
+         ob_clean();
+         echo json_encode(['status' => 'error', 'message' => 'Invalid override email address']);
+         exit;
+    }
+
+    $emailResult = get_recipient_email($user, $role);
+
+    if ($useOverride) {
+        $user['email'] = $overrideEmail;
+    } else {
+        if ($emailResult['error']) {
+            ob_clean();
+            echo json_encode(['status' => 'error', 'message' => $emailResult['error']]);
+            exit;
         }
+        $user['email'] = $emailResult['email'];
     }
     
     // Save PDF temporarily
@@ -495,7 +636,7 @@ if ($action == 'save_template') {
     
     // Send Email using Fallback (Standardized)
     // PHPMailer code removed to enforce fallback
-    $result = sendFallbackMail($user, $tempPath, $fileName, $con);
+    $result = sendFallbackMail($user, $tempPath, $fileName, $con, [], $role);
     
     if ($result['status'] == 'success') {
         // Transactional Update
@@ -506,6 +647,7 @@ if ($action == 'save_template') {
                 throw new Exception(mysqli_error($con), mysqli_errno($con));
             }
             mysqli_commit($con);
+            ob_clean();
             echo json_encode(['status' => 'success', 'message' => 'Email sent (fallback)']);
         } catch (Exception $e) {
             mysqli_rollback($con);
@@ -516,15 +658,19 @@ if ($action == 'save_template') {
                 if (mysqli_query($con, $alterQuery)) {
                     // Retry update
                     mysqli_query($con, "UPDATE users SET certificate_sent=1 WHERE id='$uid'");
+                    ob_clean();
                     echo json_encode(['status' => 'success', 'message' => 'Email sent (fallback) & Schema updated']);
                 } else {
+                     ob_clean();
                      echo json_encode(['status' => 'error', 'message' => 'Schema update failed: ' . mysqli_error($con)]);
                 }
             } else {
+                ob_clean();
                 echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
             }
         }
     } else {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Email failed: ' . $result['message']]);
     }
     
@@ -544,14 +690,25 @@ if ($action == 'save_template') {
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
         $user['verificationLink'] = "https://regsys.cloud/icpm2026/poster26/verify.php?id=" . $user['id'] . "&hash=" . $hash;
         
+        // Determine Competition Category Text
+        // Default to 'Poster Competition' unless 'Scientific' is detected
+        $compCategory = 'Poster Competition'; 
+        if (!empty($user['category']) && stripos($user['category'], 'Scientific') !== false) {
+            $compCategory = 'Scientific Competition';
+        }
+        $user['competition_category'] = $compCategory;
+
+        ob_clean();
         echo json_encode(['status' => 'success', 'data' => $user]);
     } else {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'User not found']);
     }
 
 } elseif ($action == 'verify_admin_password') {
     $adminPassword = isset($_POST['admin_password']) ? $_POST['admin_password'] : '';
     if ($adminPassword === '') {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Admin password required']);
         exit;
     }
@@ -565,10 +722,12 @@ if ($action == 'save_template') {
         $adminRow = mysqli_fetch_assoc($adminRes);
         mysqli_stmt_close($adminStmt);
         if (!$adminRow) {
+            ob_clean();
             echo json_encode(['status' => 'error', 'message' => 'Invalid admin password']);
             exit;
         }
     } else {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Verification error']);
         exit;
     }
@@ -579,11 +738,13 @@ if ($action == 'save_template') {
             $passwords[$row['id']] = $row['password'];
         }
     }
+    ob_clean();
     echo json_encode(['status' => 'success', 'passwords' => $passwords]);
 
 } elseif ($action == 'prepare_bulk_upload') {
     $batchId = $_POST['batch_id'];
     if (empty($batchId)) {
+        ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Missing batch ID']);
         exit;
     }
@@ -600,30 +761,60 @@ if ($action == 'save_template') {
         }
     }
     
+    ob_clean();
     echo json_encode(['status' => 'success']);
 
 } elseif ($action == 'send_bulk_single') {
     $uid = intval($_POST['uid']);
     $batchId = isset($_POST['batch_id']) ? $_POST['batch_id'] : '';
     $pdfData = isset($_POST['pdf_data']) ? $_POST['pdf_data'] : '';
+    $overrideEmail = isset($_POST['override_email']) ? trim($_POST['override_email']) : '';
+    $role = isset($_POST['role']) ? $_POST['role'] : 'main';
     
     // Get User
-    $userQuery = mysqli_query($con, "SELECT * FROM users WHERE id='$uid'");
+    // Select specific columns to avoid large blobs
+    $columns = "id, fname, lname, email, contactno, 
+                coauth1name, coauth1email, coauth1nationality,
+                coauth2name, coauth2email, coauth2nationality,
+                coauth3name, coauth3email, coauth3nationality,
+                coauth4name, coauth4email, coauth4nationality,
+                coauth5name, coauth5email, coauth5nationality,
+                supervisor_name, supervisor_email, supervisor_contact, supervisor_nationality,
+                profession, organization, postertitle, category, posting_date, source_system,
+                abstract_filename, companyref, paypalref, userip, password";
+    $userQuery = mysqli_query($con, "SELECT $columns FROM users WHERE id='$uid'");
     $user = mysqli_fetch_assoc($userQuery);
     
     if (!$user) {
-        echo json_encode(['status' => 'error', 'message' => 'User not found']);
         // Log failure
         logEmailStatus($con, $uid, 'unknown', 'Bulk Certificate', 'failure', 'User not found');
+        ob_clean(); // Ensure clean output
+        echo json_encode(['status' => 'error', 'message' => 'User not found']);
         exit;
     }
 
+    // Role-based Email Selection
+    require_once __DIR__ . '/email_helper.php';
+
     // Override Email Logic
     $overrideEmail = isset($_POST['override_email']) ? trim($_POST['override_email']) : '';
-    if (!empty($overrideEmail)) {
-        if (filter_var($overrideEmail, FILTER_VALIDATE_EMAIL)) {
-            $user['email'] = $overrideEmail; // Override the email for sending
+    $useOverride = false;
+    if (!empty($overrideEmail) && filter_var($overrideEmail, FILTER_VALIDATE_EMAIL)) {
+        $useOverride = true;
+    }
+
+    $emailResult = get_recipient_email($user, $role);
+
+    if ($useOverride) {
+        $user['email'] = $overrideEmail;
+    } else {
+        if ($emailResult['error']) {
+            logEmailStatus($con, $uid, 'unknown', 'Bulk Certificate', 'failure', $emailResult['error']);
+            ob_clean(); // Ensure clean output
+            echo json_encode(['status' => 'error', 'message' => $emailResult['error']]);
+            exit;
         }
+        $user['email'] = $emailResult['email'];
     }
     
     // Prepare Extra Attachments
@@ -649,15 +840,17 @@ if ($action == 'save_template') {
         file_put_contents($pdfPath, $pdfContent);
     }
 
-    $result = sendFallbackMail($user, $pdfPath, $fileName, $con, $extraAttachments);
+    $result = sendFallbackMail($user, $pdfPath, $fileName, $con, $extraAttachments, $role);
 
     if($result['status'] == 'success') {
         mysqli_query($con, "UPDATE users SET certificate_sent=1 WHERE id='$uid'");
         logEmailStatus($con, $uid, $user['email'], 'Bulk Certificate', 'success');
+        ob_clean(); // Ensure clean output
         echo json_encode(['status' => 'success']);
     } else {
         $error = $result['message'];
         logEmailStatus($con, $uid, $user['email'], 'Bulk Certificate', 'failure', $error);
+        ob_clean(); // Ensure clean output
         echo json_encode(['status' => 'error', 'message' => $error]);
     }
     
@@ -667,6 +860,7 @@ if ($action == 'save_template') {
     }
 
 } else {
+    ob_clean();
     echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
 }
 ?>

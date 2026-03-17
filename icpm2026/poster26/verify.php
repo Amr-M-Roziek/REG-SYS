@@ -3,10 +3,13 @@ include 'dbconnection.php';
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $hash = isset($_GET['hash']) ? $_GET['hash'] : '';
+$role = isset($_GET['role']) ? trim($_GET['role']) : 'main';
 $secret_salt = 'ICPM2026_Secure_Salt';
 
 $verification_status = false;
 $user_data = null;
+$fullName = '';
+$refNo = '';
 
 if ($id > 0 && $hash === md5($id . $secret_salt)) {
     // Check if users table exists and get user
@@ -14,6 +17,40 @@ if ($id > 0 && $hash === md5($id . $secret_salt)) {
     if ($query && $row = mysqli_fetch_array($query)) {
         $verification_status = true;
         $user_data = $row;
+        
+        // Determine Name based on Role
+        if ($role === 'main') {
+            $fullName = $row['fname'];
+            if (!empty($row['lname'])) {
+                $fullName .= ' ' . $row['lname'];
+            }
+        } elseif ($role === 'co1') {
+            $fullName = isset($row['coauth1name']) ? $row['coauth1name'] : '';
+        } elseif ($role === 'co2') {
+            $fullName = isset($row['coauth2name']) ? $row['coauth2name'] : '';
+        } elseif ($role === 'co3') {
+            $fullName = isset($row['coauth3name']) ? $row['coauth3name'] : '';
+        } elseif ($role === 'co4') {
+            $fullName = isset($row['coauth4name']) ? $row['coauth4name'] : '';
+        } elseif ($role === 'co5') {
+            $fullName = isset($row['coauth5name']) ? $row['coauth5name'] : '';
+        }
+        
+        if (empty($fullName)) {
+            $fullName = "Participant";
+        }
+        
+        // Determine Ref No based on Role
+        $refNo = $row['id'];
+        if ($role !== 'main') {
+            $refNo .= '-' . $role;
+        }
+        
+        $category = isset($row['category']) ? trim($row['category']) : '';
+        $eventName = "ICPM 2026 - Poster Competition";
+        if (!empty($category) && stripos($category, 'Scientific') !== false) {
+            $eventName = "ICPM 2026 - Scientific Competition";
+        }
     }
 }
 ?>
@@ -57,15 +94,15 @@ if ($id > 0 && $hash === md5($id . $secret_salt)) {
             <?php if ($verification_status && $user_data): ?>
                 <div class="status-icon valid">&#10004;</div>
                 <h2 class="valid">Certificate Verified</h2>
-                <p>The certificate with ID <strong><?php echo $id; ?></strong> is valid and authentic.</p>
+                <p>The certificate with ID <strong><?php echo htmlspecialchars($refNo); ?></strong> is valid and authentic.</p>
                 <hr>
                 <div class="detail-row">
                     <span class="detail-label">Recipient Name</span>
-                    <span class="detail-value"><?php echo htmlspecialchars($user_data['fname'] . ' ' . (isset($user_data['lname']) ? $user_data['lname'] : '')); ?></span>
+                    <span class="detail-value"><?php echo htmlspecialchars($fullName); ?></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Reference ID</span>
-                    <span class="detail-value"><?php echo htmlspecialchars($user_data['id']); ?></span>
+                    <span class="detail-value"><?php echo htmlspecialchars($refNo); ?></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Issuer</span>
@@ -73,7 +110,7 @@ if ($id > 0 && $hash === md5($id . $secret_salt)) {
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Event</span>
-                    <span class="detail-value">ICPM 2026 - Poster Presentation</span>
+                    <span class="detail-value"><?php echo htmlspecialchars($eventName); ?></span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Issue Date</span>

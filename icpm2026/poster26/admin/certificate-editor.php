@@ -2,6 +2,7 @@
 require_once 'session_setup.php';
 include 'dbconnection.php';
 require_once 'permission_helper.php';
+require_once 'email_helper.php';
 
 // Check session
 if (empty($_SESSION['id'])) {
@@ -15,6 +16,7 @@ if (!has_permission($con, 'edit_users')) {
 }
 
 $uid = isset($_GET['uid']) ? intval($_GET['uid']) : 0;
+$role = isset($_GET['role']) ? trim($_GET['role']) : 'main';
 $user = null;
 
 if ($uid > 0) {
@@ -28,12 +30,56 @@ if (!$user) {
 }
 
 // Prepare dynamic data
-$fullName = $user['fname'] . ' ' . (isset($user['lname']) ? $user['lname'] : '');
+// Handle Name based on Role
+$fullName = '';
+if ($role === 'main') {
+    $fullName = $user['fname'];
+    if (!empty($user['lname'])) {
+        $fullName .= ' ' . $user['lname'];
+    }
+} elseif ($role === 'co1') {
+    $fullName = isset($user['coauth1name']) ? $user['coauth1name'] : '';
+} elseif ($role === 'co2') {
+    $fullName = isset($user['coauth2name']) ? $user['coauth2name'] : '';
+} elseif ($role === 'co3') {
+    $fullName = isset($user['coauth3name']) ? $user['coauth3name'] : '';
+} elseif ($role === 'co4') {
+    $fullName = isset($user['coauth4name']) ? $user['coauth4name'] : '';
+} elseif ($role === 'co5') {
+    $fullName = isset($user['coauth5name']) ? $user['coauth5name'] : '';
+}
+
+// Fallback if name is empty
+if (empty($fullName)) {
+    $fullName = "Participant"; 
+}
+
+// Handle Email based on Role
+$emailResult = get_recipient_email($user, $role);
+$targetEmail = $emailResult['email'];
+
 $category = isset($user['category']) ? $user['category'] : '';
 $organization = isset($user['organization']) ? $user['organization'] : '';
 $profession = isset($user['profession']) ? $user['profession'] : '';
 $refNo = $user['id'];
+if ($role !== 'main') {
+    $refNo .= '-' . $role;
+}
 $isParticipant = false; // Poster admin
+
+// Dynamic Accreditation Text
+$accreditationText = "ICPM 2026 Poster Competition"; // Default
+$compCategory = "Poster Competition"; // Default short variable
+if (stripos($category, 'Scientific') !== false) {
+    $accreditationText = "ICPM 2026 Scientific Competition";
+    $compCategory = "Scientific Competition";
+} elseif (stripos($category, 'Poster') !== false) {
+    $accreditationText = "ICPM 2026 Poster Competition";
+    $compCategory = "Poster Competition";
+}
+
+// Dynamic Contribution Text
+$contributionText = "In gratitude for your outstanding contribution as a participant in the " . $compCategory . ".";
 
 // Verification Logic
 $secret_salt = 'ICPM2026_Secure_Salt';
@@ -42,6 +88,9 @@ $hash = md5($user['id'] . $secret_salt);
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
 // Update verification link to point to regsys.cloud verify
 $verificationLink = "https://regsys.cloud/icpm2026/poster26/verify.php?id=" . $user['id'] . "&hash=" . $hash;
+if ($role !== 'main') {
+    $verificationLink .= "&role=" . $role;
+}
 
 // Check for override email in URL (for bulk processing)
 $overrideEmailParam = isset($_GET['override_email']) ? trim($_GET['override_email']) : '';
@@ -51,14 +100,16 @@ $templateId = isset($_GET['template_id']) ? intval($_GET['template_id']) : 0;
 ?>
 <script>
     const currentUid = "<?php echo $uid; ?>";
+    const currentRole = "<?php echo htmlspecialchars($role); ?>";
     const overrideEmailParam = "<?php echo htmlspecialchars($overrideEmailParam); ?>";
     // Global variables for dynamic data re-injection
     const currentUserData = {
         fullName: "<?php echo htmlspecialchars($fullName); ?>",
         refNo: "<?php echo htmlspecialchars($refNo); ?>",
         verificationLink: "<?php echo $verificationLink; ?>",
-        email: "<?php echo htmlspecialchars($user['email']); ?>",
+        email: "<?php echo htmlspecialchars($targetEmail); ?>",
         category: "<?php echo htmlspecialchars($category); ?>",
+        competition_category: "<?php echo htmlspecialchars($compCategory); ?>",
         organization: "<?php echo htmlspecialchars($organization); ?>",
         profession: "<?php echo htmlspecialchars($profession); ?>"
     };
@@ -411,6 +462,7 @@ $templateId = isset($_GET['template_id']) ? intval($_GET['template_id']) : 0;
                 <option value="">-- Select Variable --</option>
                 <option value="fullName">Full Name</option>
                 <option value="category">Category</option>
+                <option value="competition_category">Competition Category</option>
                 <option value="organization">Organization</option>
                 <option value="profession">Profession</option>
                 <option value="refNo">Ref No</option>
@@ -534,11 +586,11 @@ $templateId = isset($_GET['template_id']) ? intval($_GET['template_id']) : 0;
 
         <!-- Logos (using relative paths to main admin/images) -->
         <div id="logo-left" class="cert-element draggable">
-            <img src="../../admin/assets/img/icpm-gold-seal.png" class="cert-logo" alt="Logo 1"> 
+            <img src="../../admin/assets/img/icpm-certified-badge.png" class="cert-logo" alt="Logo 1"> 
         </div>
         
         <div id="logo-right" class="cert-element draggable">
-             <img src="../../admin/assets/img/icpm-gold-seal.png" class="cert-logo" alt="Logo 2">
+             <img src="../../admin/assets/img/icpm-certified-badge.png" class="cert-logo" alt="Logo 2">
         </div>
 
         <!-- Text Content -->
@@ -559,7 +611,7 @@ $templateId = isset($_GET['template_id']) ? intval($_GET['template_id']) : 0;
         </div>
 
         <div id="participation-text" class="cert-element draggable" contenteditable="true">
-            For successful participation and attendance at "ICPM 2026"
+            <?php echo $contributionText; ?>
         </div>
 
         <div id="conference-title" class="cert-element draggable" contenteditable="true">
@@ -576,14 +628,11 @@ $templateId = isset($_GET['template_id']) ? intval($_GET['template_id']) : 0;
         </div>
 
         <div id="accreditation-text" class="cert-element draggable" contenteditable="true">
-            Accreditation Code EHS/CPD/26/082
+            <?php echo $accreditationText; ?>
         </div>
 
         <!-- Signatures -->
-        <div id="sig-left" class="cert-element draggable" contenteditable="true">
-            <strong>Prof. Omer Eladil Abdalla Hamid</strong><br>
-            RAKMHSU
-        </div>
+
 
         <div id="sig-center" class="cert-element draggable">
             <!-- Badge/Logo placeholder -->

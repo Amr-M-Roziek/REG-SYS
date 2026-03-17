@@ -88,6 +88,7 @@ include 'dbconnection.php';
                                 <button class="btn btn-danger btn-sm" onclick="logoutWhatsApp()"><i class="fa fa-sign-out"></i> Logout Device</button>
                                 <button class="btn btn-default btn-sm" onclick="checkStatus()"><i class="fa fa-refresh"></i> Refresh Status</button>
                                 <button class="btn btn-warning btn-sm" onclick="initDB()"><i class="fa fa-database"></i> Init DB</button>
+                                <button class="btn btn-info btn-sm" onclick="openSettings()"><i class="fa fa-cogs"></i> Settings</button>
                             </div>
                         </div>
                     </div>
@@ -294,6 +295,62 @@ ICPM Organizing Committee</textarea>
         </section>
     </section>
 
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                    <h4 class="modal-title" id="myModalLabel">WhatsApp Transport Settings</h4>
+                </div>
+                <div class="modal-body">
+                    <form id="settingsForm" class="form-horizontal">
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Transport Mode</label>
+                            <div class="col-sm-9">
+                                <select class="form-control" id="transport_mode" name="transport_mode" onchange="toggleSettingsFields()">
+                                    <option value="node">Node.js Service (QR Code)</option>
+                                    <option value="http_api">HTTP API (Open Source / Gateway)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="node-settings">
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label">Node Service URL</label>
+                                <div class="col-sm-9">
+                                    <input type="text" class="form-control" id="node_url" name="node_url" placeholder="http://127.0.0.1:3000">
+                                    <span class="help-block">URL where the Node.js service is running</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="api-settings" style="display:none;">
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label">API Endpoint URL</label>
+                                <div class="col-sm-9">
+                                    <input type="text" class="form-control" id="http_api_url" name="http_api_url" placeholder="https://api.example.com/send">
+                                    <span class="help-block">Full URL for sending messages (POST)</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label">API Token / Key</label>
+                                <div class="col-sm-9">
+                                    <input type="text" class="form-control" id="http_api_token" name="http_api_token" placeholder="Bearer Token or API Key">
+                                    <span class="help-block">Authorization header value (optional)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="assets/js/jquery.js"></script>
     <script src="assets/js/bootstrap.min.js"></script>
@@ -401,13 +458,11 @@ ICPM Organizing Committee</textarea>
             });
             
             if (selectedRecipients.length === 0) {
-                alert('Please select at least one recipient.');
+                alert('Please select at least one recipient');
                 return;
             }
             
             let msg = $('#bulk-message').val();
-            
-            if (!confirm('Add ' + selectedRecipients.length + ' recipients to queue?')) return;
             
             $.post('whatsapp_handler.php', {
                 action: 'add_bulk_csv',
@@ -415,9 +470,50 @@ ICPM Organizing Committee</textarea>
                 message: msg
             }, function(res) {
                 alert(res.message);
+                updateStats();
                 $('#preview-section').hide();
                 $('#uploadForm')[0].reset();
-                updateStats();
+            }, 'json').fail(function() {
+                alert('Error processing upload');
+            });
+        }
+
+        function openSettings() {
+            $.post('whatsapp_handler.php', { action: 'get_settings' }, function(res) {
+                if(res.status === 'success') {
+                    $('#transport_mode').val(res.data.transport_mode);
+                    $('#node_url').val(res.data.node_url);
+                    $('#http_api_url').val(res.data.http_api_url);
+                    $('#http_api_token').val(res.data.http_api_token);
+                    toggleSettingsFields();
+                    $('#settingsModal').modal('show');
+                } else {
+                    alert('Failed to load settings');
+                }
+            }, 'json');
+        }
+
+        function toggleSettingsFields() {
+            let mode = $('#transport_mode').val();
+            if (mode === 'node') {
+                $('#node-settings').show();
+                $('#api-settings').hide();
+            } else {
+                $('#node-settings').hide();
+                $('#api-settings').show();
+            }
+        }
+
+        function saveSettings() {
+            let data = $('#settingsForm').serialize();
+            data += '&action=save_settings';
+            
+            $.post('whatsapp_handler.php', data, function(res) {
+                alert(res.message);
+                if(res.status === 'success') {
+                    $('#settingsModal').modal('hide');
+                    checkStatus(); // Refresh status
+                }
             }, 'json');
         }
 

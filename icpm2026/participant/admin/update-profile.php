@@ -10,22 +10,28 @@ if (!isset($_SESSION['id']) || strlen($_SESSION['id'])==0) {
 // for updating user info
 if(isset($_POST['Submit']))
 {
-  $id=$_POST['id'];
-  $fname=$_POST['fname'];
-  $lname=$_POST['lname'];
-  $contact=$_POST['contact'];
-  $email=$_POST['email'];
-  $profession=$_POST['profession'];
+  $id=isset($_POST['id']) ? intval($_POST['id']) : 0;
+  $fname=isset($_POST['fname']) ? $_POST['fname'] : '';
+  $lname=isset($_POST['lname']) ? $_POST['lname'] : '';
+  $contact=isset($_POST['contact']) ? $_POST['contact'] : '';
+  $email=isset($_POST['email']) ? $_POST['email'] : '';
+  $profession=isset($_POST['profession']) ? $_POST['profession'] : '';
   $category='Participant';
-  $organization=$_POST['organization'];
-  $companyref=$_POST['companyref'];
-  $paypalref=$_POST['paypalref'];
-  $password=$_POST['password'];
+  $organization=isset($_POST['organization']) ? $_POST['organization'] : '';
+  $companyref=isset($_POST['companyref']) ? $_POST['companyref'] : '';
+  $paypalref=isset($_POST['paypalref']) ? $_POST['paypalref'] : '';
+  $password=isset($_POST['password']) ? trim($_POST['password']) : '';
   $uid=intval($_GET['uid']);
-  $enc=password_hash($password, PASSWORD_DEFAULT);
-  $stmt=mysqli_prepare($con,"update users set id=?, fname=?, lname=?, profession=?, category=?, email=?, organization=?, password=?, contactno=?, companyref=?, paypalref=? where id=?");
-  mysqli_stmt_bind_param($stmt,'issssssssssi',$id,$fname,$lname,$profession,$category,$email,$organization,$enc,$contact,$companyref,$paypalref,$uid);
-  mysqli_stmt_execute($stmt);
+  if ($password !== '') {
+    $enc=password_hash($password, PASSWORD_DEFAULT);
+    $stmt=mysqli_prepare($con,"update users set id=?, fname=?, lname=?, profession=?, category=?, email=?, organization=?, password=?, contactno=?, companyref=?, paypalref=? where id=?");
+    mysqli_stmt_bind_param($stmt,'issssssssssi',$id,$fname,$lname,$profession,$category,$email,$organization,$enc,$contact,$companyref,$paypalref,$uid);
+    mysqli_stmt_execute($stmt);
+  } else {
+    $stmt=mysqli_prepare($con,"update users set id=?, fname=?, lname=?, profession=?, category=?, email=?, organization=?, contactno=?, companyref=?, paypalref=? where id=?");
+    mysqli_stmt_bind_param($stmt,'isssssssssi',$id,$fname,$lname,$profession,$category,$email,$organization,$contact,$companyref,$paypalref,$uid);
+    mysqli_stmt_execute($stmt);
+  }
 $_SESSION['msg']="Profile Updated successfully";
 }
 ?>
@@ -195,7 +201,8 @@ $_SESSION['msg']="Profile Updated successfully";
                             <div class="form-group">
                               <label class="col-sm-2 col-sm-2 control-label" style="padding-left:40px;">Password </label>
                               <div class="col-sm-10">
-                                  <input type="text" class="form-control" name="password" value="<?php echo $row['password'];?>" readonly >
+                                  <input type="password" class="form-control" name="password" value="" autocomplete="new-password" placeholder="Leave blank to keep current password">
+                                  <span class="help-block">Leave blank to keep current password</span>
                               </div>
                           </div>
 

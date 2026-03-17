@@ -16,20 +16,39 @@ if (mysqli_num_rows($colCheck) == 0) {
     mysqli_query($con, "ALTER TABLE whatsapp_queue ADD COLUMN media_url VARCHAR(255) DEFAULT NULL AFTER message");
 }
 
+// Ensure whatsapp_settings table exists
+$tableCheck = mysqli_query($con, "SHOW TABLES LIKE 'whatsapp_settings'");
+if (mysqli_num_rows($tableCheck) == 0) {
+    $sql = "CREATE TABLE whatsapp_settings (
+        id INT(1) NOT NULL DEFAULT 1,
+        transport_mode VARCHAR(20) DEFAULT 'node',
+        node_url VARCHAR(255) DEFAULT 'http://127.0.0.1:3000',
+        http_api_url VARCHAR(255) DEFAULT '',
+        http_api_token VARCHAR(255) DEFAULT '',
+        PRIMARY KEY (id)
+    )";
+    mysqli_query($con, $sql);
+    // Insert default
+    mysqli_query($con, "INSERT INTO whatsapp_settings (id, transport_mode, node_url, http_api_url, http_api_token) VALUES (1, 'node', 'http://127.0.0.1:3000', '', '')");
+}
+
+// Load Settings
+$settingsQuery = mysqli_query($con, "SELECT * FROM whatsapp_settings WHERE id = 1");
+$settings = mysqli_fetch_assoc($settingsQuery);
+
+if (!$settings) {
+    // Fallback if row deleted
+    mysqli_query($con, "INSERT INTO whatsapp_settings (id, transport_mode, node_url, http_api_url, http_api_token) VALUES (1, 'node', 'http://127.0.0.1:3000', '', '')");
+    $settings = ['transport_mode' => 'node', 'node_url' => 'http://127.0.0.1:3000', 'http_api_url' => '', 'http_api_token' => ''];
+}
+
+$waTransportMode = $settings['transport_mode'];
+$nodeServiceUrl  = $settings['node_url']; // Overrides hardcoded logic
+$httpApiSendUrl  = $settings['http_api_url'];
+$httpApiToken    = $settings['http_api_token'];
+
 $action = isset($_POST['action']) ? $_POST['action'] : '';
 
-$nodeServiceMode = 'vps';
-$nodeServiceLocal = 'http://127.0.0.1:3000';
-$nodeServiceVps = 'https://regsys.cloud/icpm_webbackend';
-$nodeServiceHostinger = 'https://reg-sys.com/icpm_webbackend';
-
-if ($nodeServiceMode === 'local') {
-    $nodeServiceUrl = $nodeServiceLocal;
-} elseif ($nodeServiceMode === 'vps') {
-    $nodeServiceUrl = $nodeServiceVps;
-} else {
-    $nodeServiceUrl = $nodeServiceHostinger;
-}
 
 function formatWaNumber($phone) {
     // 1. Remove any spaces
@@ -106,15 +125,55 @@ function callNodeService($endpoint, $method = 'GET', $data = []) {
     return $decoded;
 }
 
+function callHttpApiService($data = []) {
+    global $httpApiSendUrl, $httpApiToken;
+    if (empty($httpApiSendUrl)) {
+        return ['status' => 'error', 'message' => 'HTTP API not configured'];
+    }
+    $ch = curl_init($httpApiSendUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+    curl_setopt($ch, CURLOPT_PROXY, '');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    $headers = ['Content-Type: application/json'];
+    if (!empty($httpApiToken)) {
+        $headers[] = 'Authorization: Bearer ' . $httpApiToken;
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    if (curl_errno($ch)) {
+        return ['status' => 'error', 'message' => 'HTTP API Error: ' . curl_error($ch)];
+    }
+    curl_close($ch);
+    $decoded = json_decode($response, true);
+    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && isset($decoded['status'])) {
+        return $decoded;
+    }
+    if ($httpCode >= 200 && $httpCode < 300) {
+        return ['status' => 'success'];
+    }
+    return ['status' => 'error', 'message' => 'HTTP API unexpected response'];
+}
+
 if ($action === 'get_status') {
-    $res = callNodeService('/status');
-    echo json_encode($res);
+    if ($waTransportMode === 'http_api') {
+        echo json_encode(['status' => 'READY', 'ready' => true, 'qr' => null]);
+    } else {
+        $res = callNodeService('/status');
+        echo json_encode($res);
+    }
     exit;
 }
 
 if ($action === 'logout') {
-    $res = callNodeService('/logout', 'POST');
-    echo json_encode($res);
+    if ($waTransportMode === 'http_api') {
+        echo json_encode(['status' => 'success', 'message' => 'Logout not required for HTTP API']);
+    } else {
+        $res = callNodeService('/logout', 'POST');
+        echo json_encode($res);
+    }
     exit;
 }
 
@@ -242,20 +301,24 @@ if ($action === 'process_queue') {
         // Mark as processing
         mysqli_query($con, "UPDATE whatsapp_queue SET status='processing' WHERE id=" . $row['id']);
         
-        // Prepare payload
-        $endpoint = '/send';
-        $payload = [
-            'phone' => $row['phone_number'],
-            'message' => $row['message']
-        ];
-        
-        if (!empty($row['media_url'])) {
-            $endpoint = '/send-pdf';
-            $payload['pdf_url'] = $row['media_url'];
+        if ($waTransportMode === 'http_api') {
+            $res = callHttpApiService([
+                'phone' => $row['phone_number'],
+                'message' => $row['message'],
+                'media_url' => $row['media_url']
+            ]);
+        } else {
+            $endpoint = '/send';
+            $payload = [
+                'phone' => $row['phone_number'],
+                'message' => $row['message']
+            ];
+            if (!empty($row['media_url'])) {
+                $endpoint = '/send-pdf';
+                $payload['pdf_url'] = $row['media_url'];
+            }
+            $res = callNodeService($endpoint, 'POST', $payload);
         }
-        
-        // Send to Node
-        $res = callNodeService($endpoint, 'POST', $payload);
         
         // Mask phone for logging
         $maskedPhone = substr($row['phone_number'], 0, 3) . '****' . substr($row['phone_number'], -4);
@@ -308,11 +371,17 @@ if ($action === 'send_test') {
         exit;
     }
     
-    // Send directly via Node
-    $res = callNodeService('/send', 'POST', [
-        'phone' => $phone,
-        'message' => "This is a test message from ICPM 2026 System.\nSent at: " . date('Y-m-d H:i:s')
-    ]);
+    if ($waTransportMode === 'http_api') {
+        $res = callHttpApiService([
+            'phone' => $phone,
+            'message' => "This is a test message from ICPM 2026 System.\nSent at: " . date('Y-m-d H:i:s')
+        ]);
+    } else {
+        $res = callNodeService('/send', 'POST', [
+            'phone' => $phone,
+            'message' => "This is a test message from ICPM 2026 System.\nSent at: " . date('Y-m-d H:i:s')
+        ]);
+    }
     
     // Log it
     $status = (isset($res['status']) && $res['status'] === 'success') ? 'success' : 'failed';
@@ -321,6 +390,36 @@ if ($action === 'send_test') {
     mysqli_query($con, "INSERT INTO whatsapp_logs (action, details) VALUES ('send_test', '$logMsg')");
     
     echo json_encode($res);
+    exit;
+}
+
+if ($action === 'get_settings') {
+    $q = mysqli_query($con, "SELECT * FROM whatsapp_settings WHERE id=1");
+    $data = mysqli_fetch_assoc($q);
+    echo json_encode(['status' => 'success', 'data' => $data]);
+    exit;
+}
+
+if ($action === 'save_settings') {
+    $mode = isset($_POST['transport_mode']) ? $_POST['transport_mode'] : 'node';
+    $nodeUrl = isset($_POST['node_url']) ? $_POST['node_url'] : '';
+    $apiUrl = isset($_POST['http_api_url']) ? $_POST['http_api_url'] : '';
+    $apiToken = isset($_POST['http_api_token']) ? $_POST['http_api_token'] : '';
+    
+    // Basic validation
+    if ($mode !== 'node' && $mode !== 'http_api') {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid transport mode']);
+        exit;
+    }
+    
+    $stmt = mysqli_prepare($con, "UPDATE whatsapp_settings SET transport_mode=?, node_url=?, http_api_url=?, http_api_token=? WHERE id=1");
+    mysqli_stmt_bind_param($stmt, "ssss", $mode, $nodeUrl, $apiUrl, $apiToken);
+    
+    if (mysqli_stmt_execute($stmt)) {
+        echo json_encode(['status' => 'success', 'message' => 'Settings saved']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'DB Error: ' . mysqli_error($con)]);
+    }
     exit;
 }
 

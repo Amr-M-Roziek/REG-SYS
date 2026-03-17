@@ -49,7 +49,11 @@ function get_module_connection_main($module)
             $pass = 'regsys@2025';
         }
         $db = 'regsys_participant';
-        $conn = @mysqli_connect($host, $user, $pass, $db);
+        try {
+            $conn = @mysqli_connect($host, $user, $pass, $db);
+        } catch (Exception $e) {
+            $conn = false;
+        }
         if ($conn) {
             mysqli_set_charset($conn, 'utf8mb4');
         }
@@ -76,7 +80,11 @@ function get_module_connection_main($module)
             $pass = '';
         }
         $db = 'regsys_poster26';
-        $conn = @mysqli_connect($host, $user, $pass, $db);
+        try {
+            $conn = @mysqli_connect($host, $user, $pass, $db);
+        } catch (Exception $e) {
+            $conn = false;
+        }
         if (!$conn) {
             if ($is_local) {
                 $user = 'regsys_poster';
@@ -85,7 +93,11 @@ function get_module_connection_main($module)
                 $user = 'root';
                 $pass = '';
             }
-            $conn = @mysqli_connect($host, $user, $pass, $db);
+            try {
+                $conn = @mysqli_connect($host, $user, $pass, $db);
+            } catch (Exception $e) {
+                $conn = false;
+            }
         }
         if ($conn) {
             mysqli_set_charset($conn, 'utf8mb4');
@@ -111,7 +123,11 @@ function get_module_connection_main($module)
             $pass = 'regsys@2025';
         }
         $db = 'regsys_workshop';
-        $conn = @mysqli_connect($host, $user, $pass, $db);
+        try {
+            $conn = @mysqli_connect($host, $user, $pass, $db);
+        } catch (Exception $e) {
+            $conn = false;
+        }
         if ($conn) {
             mysqli_set_charset($conn, 'utf8mb4');
         }
@@ -127,10 +143,14 @@ function fetch_single_int_main($conn, $sql)
     if (!$conn) {
         return null;
     }
-    $res = mysqli_query($conn, $sql);
-    if ($res && mysqli_num_rows($res) > 0) {
-        $row = mysqli_fetch_row($res);
-        return isset($row[0]) ? (int)$row[0] : null;
+    try {
+        $res = mysqli_query($conn, $sql);
+        if ($res && mysqli_num_rows($res) > 0) {
+            $row = mysqli_fetch_row($res);
+            return isset($row[0]) ? (int)$row[0] : null;
+        }
+    } catch (Throwable $e) {
+        return null;
     }
     return null;
 }
@@ -169,44 +189,50 @@ $categoryStats = [
 ];
 
 if ($regCon) {
-    $res = mysqli_query($regCon, "SELECT category, COUNT(*) AS total FROM users GROUP BY category ORDER BY total DESC LIMIT 10");
-    if ($res) {
-        while ($row = mysqli_fetch_assoc($res)) {
-            $categoryStats['reg'][] = $row;
+    try {
+        $res = mysqli_query($regCon, "SELECT category, COUNT(*) AS total FROM users GROUP BY category ORDER BY total DESC LIMIT 10");
+        if ($res) {
+            while ($row = mysqli_fetch_assoc($res)) {
+                $categoryStats['reg'][] = $row;
+            }
         }
-    }
+    } catch (Throwable $e) {}
 }
 
 if ($participantCon) {
-    $res = mysqli_query($participantCon, "SELECT category, COUNT(*) AS total FROM users GROUP BY category ORDER BY total DESC LIMIT 10");
-    if ($res) {
-        while ($row = mysqli_fetch_assoc($res)) {
-            $categoryStats['participant'][] = $row;
+    try {
+        $res = mysqli_query($participantCon, "SELECT category, COUNT(*) AS total FROM users GROUP BY category ORDER BY total DESC LIMIT 10");
+        if ($res) {
+            while ($row = mysqli_fetch_assoc($res)) {
+                $categoryStats['participant'][] = $row;
+            }
         }
-    }
+    } catch (Throwable $e) {}
 }
 
 if ($posterCon) {
-    $res = mysqli_query($posterCon, "SELECT 
-        category, 
-        COUNT(*) AS total,
-        SUM(
-            (CASE WHEN coauth1name IS NOT NULL AND coauth1name != '' THEN 1 ELSE 0 END) +
-            (CASE WHEN coauth2name IS NOT NULL AND coauth2name != '' THEN 1 ELSE 0 END) +
-            (CASE WHEN coauth3name IS NOT NULL AND coauth3name != '' THEN 1 ELSE 0 END) +
-            (CASE WHEN coauth4name IS NOT NULL AND coauth4name != '' THEN 1 ELSE 0 END) +
-            (CASE WHEN coauth5name IS NOT NULL AND coauth5name != '' THEN 1 ELSE 0 END)
-        ) AS co_author_count
-        FROM users 
-        WHERE source_system='poster' OR source_system='both' 
-        GROUP BY category 
-        ORDER BY total DESC 
-        LIMIT 10");
-    if ($res) {
-        while ($row = mysqli_fetch_assoc($res)) {
-            $categoryStats['poster26'][] = $row;
+    try {
+        $res = mysqli_query($posterCon, "SELECT 
+            category, 
+            COUNT(*) AS total,
+            SUM(
+                (CASE WHEN coauth1name IS NOT NULL AND coauth1name != '' THEN 1 ELSE 0 END) +
+                (CASE WHEN coauth2name IS NOT NULL AND coauth2name != '' THEN 1 ELSE 0 END) +
+                (CASE WHEN coauth3name IS NOT NULL AND coauth3name != '' THEN 1 ELSE 0 END) +
+                (CASE WHEN coauth4name IS NOT NULL AND coauth4name != '' THEN 1 ELSE 0 END) +
+                (CASE WHEN coauth5name IS NOT NULL AND coauth5name != '' THEN 1 ELSE 0 END)
+            ) AS co_author_count
+            FROM users 
+            WHERE source_system='poster' OR source_system='both' 
+            GROUP BY category 
+            ORDER BY total DESC 
+            LIMIT 10");
+        if ($res) {
+            while ($row = mysqli_fetch_assoc($res)) {
+                $categoryStats['poster26'][] = $row;
+            }
         }
-    }
+    } catch (Throwable $e) {}
 }
 
 $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -216,164 +242,166 @@ $filterDateTo = isset($_GET['to']) ? $_GET['to'] : '';
 $searchResults = [];
 
 if ($searchQuery !== '' || $filterModule !== '' || $filterDateFrom !== '' || $filterDateTo !== '') {
-    $like = '%' . $searchQuery . '%';
+    try {
+        $like = '%' . $searchQuery . '%';
 
-    if ($regCon && ($filterModule === '' || $filterModule === 'reg')) {
-        $sql = "SELECT id, fname, lname, email, category, created_at FROM users WHERE 1=1";
-        $types = '';
-        $params = [];
-        if ($searchQuery !== '') {
-            $sql .= " AND (CAST(id AS CHAR) LIKE ? OR fname LIKE ? OR lname LIKE ? OR email LIKE ?)";
-            $types .= 'ssss';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-        }
-        if ($filterDateFrom !== '') {
-            $sql .= " AND DATE(created_at) >= ?";
-            $types .= 's';
-            $params[] = $filterDateFrom;
-        }
-        if ($filterDateTo !== '') {
-            $sql .= " AND DATE(created_at) <= ?";
-            $types .= 's';
-            $params[] = $filterDateTo;
-        }
-        $sql .= " ORDER BY created_at DESC LIMIT 50";
-        $stmt = mysqli_prepare($regCon, $sql);
-        if ($stmt) {
-            mysqli_stmt_execute_compat($stmt, $types, $params);
-            $res = mysqli_stmt_get_result($stmt);
-            while ($row = mysqli_fetch_assoc($res)) {
-                $row['module'] = 'Registration';
-                $row['date'] = $row['created_at'];
-                $row['detail_link'] = '../admin/manage-users.php?search=' . urlencode($row['id']);
-                $searchResults[] = $row;
+        if ($regCon && ($filterModule === '' || $filterModule === 'reg')) {
+            $sql = "SELECT id, fname, lname, email, category, created_at FROM users WHERE 1=1";
+            $types = '';
+            $params = [];
+            if ($searchQuery !== '') {
+                $sql .= " AND (CAST(id AS CHAR) LIKE ? OR fname LIKE ? OR lname LIKE ? OR email LIKE ?)";
+                $types .= 'ssss';
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = $like;
+            }
+            if ($filterDateFrom !== '') {
+                $sql .= " AND DATE(created_at) >= ?";
+                $types .= 's';
+                $params[] = $filterDateFrom;
+            }
+            if ($filterDateTo !== '') {
+                $sql .= " AND DATE(created_at) <= ?";
+                $types .= 's';
+                $params[] = $filterDateTo;
+            }
+            $sql .= " ORDER BY created_at DESC LIMIT 50";
+            $stmt = mysqli_prepare($regCon, $sql);
+            if ($stmt) {
+                mysqli_stmt_execute_compat($stmt, $types, $params);
+                $res = mysqli_stmt_get_result($stmt);
+                while ($row = mysqli_fetch_assoc($res)) {
+                    $row['module'] = 'Registration';
+                    $row['date'] = $row['created_at'];
+                    $row['detail_link'] = '../admin/manage-users.php?search=' . urlencode($row['id']);
+                    $searchResults[] = $row;
+                }
             }
         }
-    }
 
-    if ($participantCon && ($filterModule === '' || $filterModule === 'participant')) {
-        $sql = "SELECT id, fname, lname, email, category, posting_date FROM users WHERE 1=1";
-        $types = '';
-        $params = [];
-        if ($searchQuery !== '') {
-            $sql .= " AND (CAST(id AS CHAR) LIKE ? OR fname LIKE ? OR lname LIKE ? OR email LIKE ?)";
-            $types .= 'ssss';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-        }
-        if ($filterDateFrom !== '') {
-            $sql .= " AND DATE(posting_date) >= ?";
-            $types .= 's';
-            $params[] = $filterDateFrom;
-        }
-        if ($filterDateTo !== '') {
-            $sql .= " AND DATE(posting_date) <= ?";
-            $types .= 's';
-            $params[] = $filterDateTo;
-        }
-        $sql .= " ORDER BY posting_date DESC LIMIT 50";
-        $stmt = mysqli_prepare($participantCon, $sql);
-        if ($stmt) {
-            if ($types !== '') {
-                mysqli_stmt_bind_param($stmt, $types, ...$params);
+        if ($participantCon && ($filterModule === '' || $filterModule === 'participant')) {
+            $sql = "SELECT id, fname, lname, email, category, posting_date FROM users WHERE 1=1";
+            $types = '';
+            $params = [];
+            if ($searchQuery !== '') {
+                $sql .= " AND (CAST(id AS CHAR) LIKE ? OR fname LIKE ? OR lname LIKE ? OR email LIKE ?)";
+                $types .= 'ssss';
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = $like;
             }
-            mysqli_stmt_execute($stmt);
-            $res = mysqli_stmt_get_result($stmt);
-            while ($row = mysqli_fetch_assoc($res)) {
-                $row['module'] = 'Participant';
-                $row['date'] = $row['posting_date'];
-                $row['detail_link'] = '../participant/admin/manage-users.php?search=' . urlencode($row['id']);
-                $searchResults[] = $row;
+            if ($filterDateFrom !== '') {
+                $sql .= " AND DATE(posting_date) >= ?";
+                $types .= 's';
+                $params[] = $filterDateFrom;
             }
-        }
-    }
-
-    if ($posterCon && ($filterModule === '' || $filterModule === 'poster26')) {
-        $sql = "SELECT id, fname, email, category, posting_date FROM users WHERE (source_system='poster' OR source_system='both')";
-        $types = '';
-        $params = [];
-        if ($searchQuery !== '') {
-            $sql .= " AND (CAST(id AS CHAR) LIKE ? OR fname LIKE ? OR email LIKE ?)";
-            $types .= 'sss';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-        }
-        if ($filterDateFrom !== '') {
-            $sql .= " AND DATE(posting_date) >= ?";
-            $types .= 's';
-            $params[] = $filterDateFrom;
-        }
-        if ($filterDateTo !== '') {
-            $sql .= " AND DATE(posting_date) <= ?";
-            $types .= 's';
-            $params[] = $filterDateTo;
-        }
-        $sql .= " ORDER BY posting_date DESC LIMIT 50";
-        $stmt = mysqli_prepare($posterCon, $sql);
-        if ($stmt) {
-            mysqli_stmt_execute_compat($stmt, $types, $params);
-            $res = mysqli_stmt_get_result($stmt);
-            while ($row = mysqli_fetch_assoc($res)) {
-                $row['module'] = 'Poster 26';
-                $row['lname'] = '';
-                $row['date'] = $row['posting_date'];
-                $row['detail_link'] = '../poster26/admin/manage-users.php?search=' . urlencode($row['id']);
-                $searchResults[] = $row;
+            if ($filterDateTo !== '') {
+                $sql .= " AND DATE(posting_date) <= ?";
+                $types .= 's';
+                $params[] = $filterDateTo;
+            }
+            $sql .= " ORDER BY posting_date DESC LIMIT 50";
+            $stmt = mysqli_prepare($participantCon, $sql);
+            if ($stmt) {
+                if ($types !== '') {
+                    mysqli_stmt_bind_param($stmt, $types, ...$params);
+                }
+                mysqli_stmt_execute($stmt);
+                $res = mysqli_stmt_get_result($stmt);
+                while ($row = mysqli_fetch_assoc($res)) {
+                    $row['module'] = 'Participant';
+                    $row['date'] = $row['posting_date'];
+                    $row['detail_link'] = '../participant/admin/manage-users.php?search=' . urlencode($row['id']);
+                    $searchResults[] = $row;
+                }
             }
         }
-    }
 
-    if ($workshopCon && ($filterModule === '' || $filterModule === 'workshop')) {
-        $sql = "SELECT id, fname, lname, email, category FROM users WHERE 1=1";
-        $types = '';
-        $params = [];
-        if ($searchQuery !== '') {
-            $sql .= " AND (CAST(id AS CHAR) LIKE ? OR fname LIKE ? OR lname LIKE ? OR email LIKE ?)";
-            $types .= 'ssss';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-        }
-        $sql .= " ORDER BY id DESC LIMIT 50";
-        $stmt = mysqli_prepare($workshopCon, $sql);
-        if ($stmt) {
-            mysqli_stmt_execute_compat($stmt, $types, $params);
-            $res = mysqli_stmt_get_result($stmt);
-            while ($row = mysqli_fetch_assoc($res)) {
-                $row['module'] = 'Workshop';
-                $row['date'] = '';
-                $row['detail_link'] = '';
-                $searchResults[] = $row;
+        if ($posterCon && ($filterModule === '' || $filterModule === 'poster26')) {
+            $sql = "SELECT id, fname, email, category, posting_date FROM users WHERE (source_system='poster' OR source_system='both')";
+            $types = '';
+            $params = [];
+            if ($searchQuery !== '') {
+                $sql .= " AND (CAST(id AS CHAR) LIKE ? OR fname LIKE ? OR email LIKE ?)";
+                $types .= 'sss';
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = $like;
+            }
+            if ($filterDateFrom !== '') {
+                $sql .= " AND DATE(posting_date) >= ?";
+                $types .= 's';
+                $params[] = $filterDateFrom;
+            }
+            if ($filterDateTo !== '') {
+                $sql .= " AND DATE(posting_date) <= ?";
+                $types .= 's';
+                $params[] = $filterDateTo;
+            }
+            $sql .= " ORDER BY posting_date DESC LIMIT 50";
+            $stmt = mysqli_prepare($posterCon, $sql);
+            if ($stmt) {
+                mysqli_stmt_execute_compat($stmt, $types, $params);
+                $res = mysqli_stmt_get_result($stmt);
+                while ($row = mysqli_fetch_assoc($res)) {
+                    $row['module'] = 'Poster 26';
+                    $row['lname'] = '';
+                    $row['date'] = $row['posting_date'];
+                    $row['detail_link'] = '../poster26/admin/manage-users.php?search=' . urlencode($row['id']);
+                    $searchResults[] = $row;
+                }
             }
         }
-    }
 
-    if (isset($_GET['export']) && $_GET['export'] === 'csv' && count($searchResults) > 0) {
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="dashboard_search_' . date('Y-m-d_H-i-s') . '.csv"');
-        $fp = fopen('php://output', 'w');
-        fputcsv($fp, ['Module', 'Ref Number', 'First Name', 'Last Name', 'Email', 'Category', 'Date']);
-        foreach ($searchResults as $row) {
-            fputcsv($fp, [
-                $row['module'],
-                $row['id'],
-                $row['fname'],
-                isset($row['lname']) ? $row['lname'] : '',
-                $row['email'],
-                isset($row['category']) ? $row['category'] : '',
-                $row['date']
-            ]);
+        if ($workshopCon && ($filterModule === '' || $filterModule === 'workshop')) {
+            $sql = "SELECT id, fname, lname, email, category FROM users WHERE 1=1";
+            $types = '';
+            $params = [];
+            if ($searchQuery !== '') {
+                $sql .= " AND (CAST(id AS CHAR) LIKE ? OR fname LIKE ? OR lname LIKE ? OR email LIKE ?)";
+                $types .= 'ssss';
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = $like;
+            }
+            $sql .= " ORDER BY id DESC LIMIT 50";
+            $stmt = mysqli_prepare($workshopCon, $sql);
+            if ($stmt) {
+                mysqli_stmt_execute_compat($stmt, $types, $params);
+                $res = mysqli_stmt_get_result($stmt);
+                while ($row = mysqli_fetch_assoc($res)) {
+                    $row['module'] = 'Workshop';
+                    $row['date'] = '';
+                    $row['detail_link'] = '';
+                    $searchResults[] = $row;
+                }
+            }
         }
-        fclose($fp);
-        exit;
-    }
+
+        if (isset($_GET['export']) && $_GET['export'] === 'csv' && count($searchResults) > 0) {
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename="dashboard_search_' . date('Y-m-d_H-i-s') . '.csv"');
+            $fp = fopen('php://output', 'w');
+            fputcsv($fp, ['Module', 'Ref Number', 'First Name', 'Last Name', 'Email', 'Category', 'Date']);
+            foreach ($searchResults as $row) {
+                fputcsv($fp, [
+                    $row['module'],
+                    $row['id'],
+                    $row['fname'],
+                    isset($row['lname']) ? $row['lname'] : '',
+                    $row['email'],
+                    isset($row['category']) ? $row['category'] : '',
+                    $row['date']
+                ]);
+            }
+            fclose($fp);
+            exit;
+        }
+    } catch (Throwable $e) {}
 }
 
 $currentPage = 'main-dashboard';

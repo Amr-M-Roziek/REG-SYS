@@ -14,6 +14,37 @@ if (!has_permission($con, 'view_users')) {
     die("You do not have permission to access this page.");
 }
 
+// AJAX Handler for WhatsApp Data
+if (isset($_POST['action']) && $_POST['action'] === 'get_whatsapp_data') {
+    if (ob_get_length()) ob_clean();
+    header('Content-Type: application/json');
+    
+    $uid = intval($_POST['uid']);
+    // Select specific columns to avoid large blobs (e.g. abstract_blob) which break AJAX response
+    $columns = "id, fname, lname, email, contactno, 
+                coauth1name, coauth1email, coauth1nationality,
+                coauth2name, coauth2email, coauth2nationality,
+                coauth3name, coauth3email, coauth3nationality,
+                coauth4name, coauth4email, coauth4nationality,
+                coauth5name, coauth5email, coauth5nationality,
+                supervisor_name, supervisor_email, supervisor_contact, supervisor_nationality,
+                profession, organization, postertitle, category, posting_date, source_system,
+                abstract_filename, companyref, paypalref, userip, password";
+    
+    $query = mysqli_query($con, "SELECT $columns FROM users WHERE id='$uid'");
+    
+    if ($row = mysqli_fetch_assoc($query)) {
+        // Generate Hash for certificate link
+        $secret_salt = 'ICPM2026_Secure_Salt';
+        $row['hash'] = md5($row['id'] . $secret_salt);
+        
+        echo json_encode(['status' => 'success', 'data' => $row]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'User not found']);
+    }
+    exit();
+}
+
 function escape_html($s) {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
@@ -44,162 +75,273 @@ if (isset($_GET['ajax'])) {
         header('HTTP/1.1 401 Unauthorized');
         exit('Unauthorized');
     }
+    
+    if (ob_get_length()) ob_clean();
+    
+    // Explicitly set JSON header
+    header('Content-Type: application/json');
+    
+    // Disable error reporting for AJAX to prevent JSON corruption
+    error_reporting(0);
+    ini_set('display_errors', 0);
+
+    try {
+        // Check if attendance table exists
+        $db_check = mysqli_query($con, "SHOW TABLES LIKE 'attendance'");
+        $table_exists = mysqli_num_rows($db_check) > 0;
+        
         $q = isset($_GET['search']) ? $_GET['search'] : '';
         if (preg_match('/^(\d+)-co[1-5]$/i', $q, $m)) {
             $q = $m[1];
         }
         $categoryFilter = isset($_GET['category']) ? $_GET['category'] : '';
-        $attendanceFilter = isset($_GET['attendance']) ? $_GET['attendance'] : '';
+        $attendanceFilter = isset($_GET['attendance_status']) ? $_GET['attendance_status'] : '';
+        $certificateStatusFilter = isset($_GET['certificate_status']) ? $_GET['certificate_status'] : '';
+        $dateStart = isset($_GET['date_start']) ? $_GET['date_start'] : '';
+        $dateEnd = isset($_GET['date_end']) ? $_GET['date_end'] : '';
+        
         $limitArg = isset($_GET['limit']) ? $_GET['limit'] : 100;
         $limit = ($limitArg === 'ALL') ? 1000000 : intval($limitArg);
+        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+        $offset = ($page - 1) * $limit;
+        
         $pattern = '%' . $q . '%';
         
-        $categoryClause = '';
+        // Base WHERE clauses
+        $whereSQL = "(users.source_system='poster' OR users.source_system='both' OR users.source_system IS NULL OR users.source_system='')";
+        
         if ($categoryFilter !== '') {
             $safeCategory = mysqli_real_escape_string($con, $categoryFilter);
-            $categoryClause = " AND users.category COLLATE utf8mb4_bin LIKE '%" . $safeCategory . "%'";
+            $whereSQL .= " AND users.category COLLATE utf8mb4_bin LIKE '%" . $safeCategory . "%'";
         }
 
-        $attendanceClause = '';
-        if ($attendanceFilter === 'attended') {
-            $attendanceClause = " AND (attendance.status = 'present' OR attendance.status = 'late')";
-        } elseif ($attendanceFilter === 'not_attended') {
-            $attendanceClause = " AND (attendance.status = 'absent' OR attendance.status IS NULL)";
+        if ($table_exists) {
+            if ($attendanceFilter === 'attended') {
+                $whereSQL .= " AND (attendance.status = 'present' OR attendance.status = 'late')";
+            } elseif ($attendanceFilter === 'not_attended') {
+                $whereSQL .= " AND (attendance.status = 'absent' OR attendance.status IS NULL)";
+            }
         }
 
-        $sql = "SELECT users.*, attendance.status as attendance_status FROM users LEFT JOIN attendance ON users.id = attendance.user_id WHERE
-        (CAST(users.id AS CHAR) COLLATE utf8mb4_bin LIKE ? OR
-        users.fname COLLATE utf8mb4_bin LIKE ? OR
-        users.nationality COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth1name COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth1nationality COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth2name COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth2nationality COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth3name COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth3nationality COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth4name COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth4nationality COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth5name COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth5nationality COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth1email COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth2email COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth3email COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth4email COLLATE utf8mb4_bin LIKE ? OR
-        users.coauth5email COLLATE utf8mb4_bin LIKE ? OR
-        users.email COLLATE utf8mb4_bin LIKE ? OR
-        users.profession COLLATE utf8mb4_bin LIKE ? OR
-        users.organization COLLATE utf8mb4_bin LIKE ? OR
-        users.category COLLATE utf8mb4_bin LIKE ? OR
-        users.password COLLATE utf8mb4_bin LIKE ? OR
-        users.contactno COLLATE utf8mb4_bin LIKE ? OR
-        users.userip COLLATE utf8mb4_bin LIKE ? OR
-        users.companyref COLLATE utf8mb4_bin LIKE ? OR
-        users.paypalref COLLATE utf8mb4_bin LIKE ? OR
-        users.supervisor_name COLLATE utf8mb4_bin LIKE ? OR
-        users.supervisor_nationality COLLATE utf8mb4_bin LIKE ? OR
-        users.supervisor_contact COLLATE utf8mb4_bin LIKE ? OR
-        users.supervisor_email COLLATE utf8mb4_bin LIKE ? OR
-        users.postertitle COLLATE utf8mb4_bin LIKE ?)
-        AND (users.source_system='poster' OR users.source_system='both')" . $categoryClause . $attendanceClause . "
-        ORDER BY users.id ASC LIMIT $limit";
-    $stmt = mysqli_prepare($con, $sql);
-    if ($stmt) {
-        mysqli_stmt_bind_param(
-            $stmt,
-            str_repeat('s', 32),
-            $pattern, $pattern, $pattern, $pattern, $pattern, $pattern, $pattern,
-            $pattern, $pattern, $pattern, $pattern, $pattern, $pattern, $pattern,
-            $pattern, $pattern, $pattern, $pattern, $pattern,
-            $pattern, $pattern, $pattern, $pattern, $pattern, $pattern, $pattern,
-            $pattern, $pattern, $pattern, $pattern, $pattern, $pattern
-        );
+        if ($certificateStatusFilter !== '') {
+            $whereSQL .= " AND users.certificate_sent = " . intval($certificateStatusFilter);
+        }
+
+        if ($dateStart !== '') {
+            $whereSQL .= " AND DATE(users.posting_date) >= '" . mysqli_real_escape_string($con, $dateStart) . "'";
+        }
+        if ($dateEnd !== '') {
+            $whereSQL .= " AND DATE(users.posting_date) <= '" . mysqli_real_escape_string($con, $dateEnd) . "'";
+        }
+        
+        // Search Condition
+        if ($q !== '') {
+            $whereSQL .= " AND (
+                CAST(users.id AS CHAR) COLLATE utf8mb4_bin LIKE ? OR
+                users.fname COLLATE utf8mb4_bin LIKE ? OR
+                users.nationality COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth1name COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth1nationality COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth2name COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth2nationality COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth3name COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth3nationality COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth4name COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth4nationality COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth5name COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth5nationality COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth1email COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth2email COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth3email COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth4email COLLATE utf8mb4_bin LIKE ? OR
+                users.coauth5email COLLATE utf8mb4_bin LIKE ? OR
+                users.email COLLATE utf8mb4_bin LIKE ? OR
+                users.profession COLLATE utf8mb4_bin LIKE ? OR
+                users.organization COLLATE utf8mb4_bin LIKE ? OR
+                users.category COLLATE utf8mb4_bin LIKE ? OR
+                users.password COLLATE utf8mb4_bin LIKE ? OR
+                users.contactno COLLATE utf8mb4_bin LIKE ? OR
+                users.userip COLLATE utf8mb4_bin LIKE ? OR
+                users.companyref COLLATE utf8mb4_bin LIKE ? OR
+                users.paypalref COLLATE utf8mb4_bin LIKE ? OR
+                users.supervisor_name COLLATE utf8mb4_bin LIKE ? OR
+                users.supervisor_nationality COLLATE utf8mb4_bin LIKE ? OR
+                users.supervisor_contact COLLATE utf8mb4_bin LIKE ? OR
+                users.supervisor_email COLLATE utf8mb4_bin LIKE ? OR
+                users.postertitle COLLATE utf8mb4_bin LIKE ?
+            )";
+        }
+
+        file_put_contents('debug_log.txt', date('Y-m-d H:i:s') . " - Table 'attendance' exists: " . ($table_exists ? 'Yes' : 'No') . "\n", FILE_APPEND);
+
+        // Count Query
+        if ($table_exists) {
+            $countSql = "SELECT COUNT(*) as cnt FROM users LEFT JOIN attendance ON users.id = attendance.user_id WHERE " . $whereSQL;
+        } else {
+            $countSql = "SELECT COUNT(*) as cnt FROM users WHERE " . $whereSQL;
+        }
+        $stmt = mysqli_prepare($con, $countSql);
+        
+        if ($q !== '') {
+            mysqli_stmt_bind_param(
+                $stmt,
+                str_repeat('s', 32),
+                $pattern, $pattern, $pattern, $pattern, $pattern, $pattern, $pattern,
+                $pattern, $pattern, $pattern, $pattern, $pattern, $pattern, $pattern,
+                $pattern, $pattern, $pattern, $pattern, $pattern,
+                $pattern, $pattern, $pattern, $pattern, $pattern, $pattern, $pattern,
+                $pattern, $pattern, $pattern, $pattern, $pattern, $pattern
+            );
+        }
+        
+        mysqli_stmt_execute($stmt);
+        $countRes = mysqli_stmt_get_result($stmt);
+        $totalRecords = mysqli_fetch_assoc($countRes)['cnt'];
+        $totalPages = ceil($totalRecords / $limit);
+
+        // Fetch Data Query
+        if ($table_exists) {
+            $sql = "SELECT users.*, attendance.status as attendance_status FROM users LEFT JOIN attendance ON users.id = attendance.user_id WHERE " . $whereSQL . " ORDER BY users.id DESC LIMIT ? OFFSET ?";
+        } else {
+            $sql = "SELECT users.*, '' as attendance_status FROM users WHERE " . $whereSQL . " ORDER BY users.id DESC LIMIT ? OFFSET ?";
+        }
+        
+        // Debug Logging
+        file_put_contents('debug_log.txt', date('Y-m-d H:i:s') . " - SQL: " . $sql . "\nParams: " . print_r([$q, $categoryFilter, $certificateStatusFilter, $attendanceFilter, $dateStart, $dateEnd, $limit, $offset], true) . "\nDB Host: " . (getenv('DB_HOST') ?: DB_SERVER) . "\nDB Name: " . DB_NAME . "\n", FILE_APPEND);
+        
+        $stmt = mysqli_prepare($con, $sql);
+        
+        if ($q !== '') {
+            // Bind params for search + limit/offset
+            $types = str_repeat('s', 32) . "ii";
+            $params = array_fill(0, 32, $pattern);
+            $params[] = $limit;
+            $params[] = $offset;
+            mysqli_stmt_bind_param($stmt, $types, ...$params);
+        } else {
+            // Bind only limit/offset
+            mysqli_stmt_bind_param($stmt, "ii", $limit, $offset);
+        }
+        
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
-    } else {
-        $result = false;
-    }
-    $cnt = 1;
-    if ($result && mysqli_num_rows($result) > 0) {
-        $wrap = function($val, $q, $short=false) {
-            $txt = (string)$val;
-            $hl = highlight_text($txt, $q);
-            $cls = $short ? 'cell-content short' : 'cell-content';
-            return '<div class="' . $cls . '" title="' . escape_html($txt) . '">' . $hl . '</div>';
-        };
-        while ($row = mysqli_fetch_assoc($result)) {
-            $certStatus = isset($row['certificate_sent']) ? $row['certificate_sent'] : 0;
-            echo "<tr data-user-id=\"" . intval($row['id']) . "\">";
-            echo "<td><input type='checkbox' class='user-checkbox' value='" . $row['id'] . "' onchange='updateBulkButton()'></td>";
-            echo "<td><button class=\"btn btn-primary btn-xs print-user-btn\" data-user-id=\"" . intval($row['id']) . "\" data-main=\"" . escape_html($row['fname']) . "\" data-co1=\"" . escape_html($row['coauth1name']) . "\" data-co2=\"" . escape_html($row['coauth2name']) . "\" data-co3=\"" . escape_html($row['coauth3name']) . "\" data-co4=\"" . escape_html($row['coauth4name']) . "\" data-co5=\"" . escape_html(isset($row['coauth5name']) ? $row['coauth5name'] : '') . "\"><i class=\"fa fa-print\"></i></button></td>";
-            echo "<td>" . $wrap($cnt, '', true) . "</td>";
-            echo "<td>" . $wrap($row['id'], $q, false) . "</td>";
-            echo "<td>" . $wrap($row['fname'], $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['postertitle']) ? $row['postertitle'] : '', $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['nationality']) ? $row['nationality'] : '', $q) . "</td>";
-            echo "<td>" . $wrap($row['coauth1name'], $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['coauth1nationality']) ? $row['coauth1nationality'] : '', $q) . "</td>";
-            echo "<td>" . $wrap($row['coauth2name'], $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['coauth2nationality']) ? $row['coauth2nationality'] : '', $q) . "</td>";
-            echo "<td>" . $wrap($row['coauth3name'], $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['coauth3nationality']) ? $row['coauth3nationality'] : '', $q) . "</td>";
-            echo "<td>" . $wrap($row['coauth4name'], $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['coauth4nationality']) ? $row['coauth4nationality'] : '', $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['coauth5name']) ? $row['coauth5name'] : '', $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['coauth5nationality']) ? $row['coauth5nationality'] : '', $q) . "</td>";
-            echo "<td>" . $wrap($row['coauth1email'], $q) . "</td>";
-            echo "<td>" . $wrap($row['coauth2email'], $q) . "</td>";
-            echo "<td>" . $wrap($row['coauth3email'], $q) . "</td>";
-            echo "<td>" . $wrap($row['coauth4email'], $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['coauth5email']) ? $row['coauth5email'] : '', $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['supervisor_name']) ? $row['supervisor_name'] : '', $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['supervisor_nationality']) ? $row['supervisor_nationality'] : '', $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['supervisor_contact']) ? $row['supervisor_contact'] : '', $q) . "</td>";
-            echo "<td>" . $wrap(isset($row['supervisor_email']) ? $row['supervisor_email'] : '', $q) . "</td>";
-            echo "<td>" . $wrap($row['email'], $q) . "</td>";
-            echo "<td>" . $wrap($row['profession'], $q) . "</td>";
-            echo "<td>" . $wrap($row['organization'], $q) . "</td>";
-            echo "<td>" . $wrap($row['category'], $q) . "</td>";
-            echo "<td>" . $wrap($row['contactno'], $q) . "</td>";
-            echo "<td><span class=\"password-display\" data-user-id=\"" . intval($row['id']) . "\">******</span></td>";
-            echo "<td>" . $wrap($row['companyref'], $q) . "</td>";
-            echo "<td>" . $wrap($row['posting_date'], $q) . "</td>";
+        
+        $html = '';
+        $cnt = $offset + 1;
+        $rowCount = 0;
+        
+        if ($result && mysqli_num_rows($result) > 0) {
+            $wrap = function($val, $q, $short=false) {
+                $txt = (string)$val;
+                $hl = highlight_text($txt, $q);
+                $cls = $short ? 'cell-content short' : 'cell-content';
+                return '<div class="' . $cls . '" title="' . escape_html($txt) . '">' . $hl . '</div>';
+            };
             
-            $attStatus = isset($row['attendance_status']) ? $row['attendance_status'] : '';
-            if (empty($attStatus)) {
-                $attDisplay = 'Not Attended';
-                $attStyle = 'color:red;';
-            } elseif ($attStatus == 'present' || $attStatus == 'late') {
-                $attDisplay = ucfirst($attStatus);
-                $attStyle = 'color:green; font-weight:bold;';
-            } else {
-                $attDisplay = ucfirst($attStatus);
-                $attStyle = 'color:orange;';
-            }
-            echo "<td style='" . $attStyle . "'>" . $attDisplay . "</td>";
+            while ($row = mysqli_fetch_assoc($result)) {
+                $certStatus = isset($row['certificate_sent']) ? $row['certificate_sent'] : 0;
+                $html .= "<tr data-user-id=\"" . intval($row['id']) . "\">";
+                $html .= "<td><input type='checkbox' class='user-checkbox' value='" . $row['id'] . "' onchange='updateBulkButton()'></td>";
+                $html .= "<td><button class=\"btn btn-primary btn-xs print-user-btn\" data-user-id=\"" . intval($row['id']) . "\" data-main=\"" . escape_html($row['fname']) . "\" data-co1=\"" . escape_html($row['coauth1name']) . "\" data-co2=\"" . escape_html($row['coauth2name']) . "\" data-co3=\"" . escape_html($row['coauth3name']) . "\" data-co4=\"" . escape_html($row['coauth4name']) . "\" data-co5=\"" . escape_html(isset($row['coauth5name']) ? $row['coauth5name'] : '') . "\"><i class=\"fa fa-print\"></i></button></td>";
+                $html .= "<td>" . $wrap($cnt, '', true) . "</td>";
+                $html .= "<td>" . $wrap($row['id'], $q, false) . "</td>";
+                $html .= "<td>" . $wrap($row['fname'], $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['postertitle']) ? $row['postertitle'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['nationality']) ? $row['nationality'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap($row['coauth1name'], $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['coauth1nationality']) ? $row['coauth1nationality'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap($row['coauth2name'], $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['coauth2nationality']) ? $row['coauth2nationality'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap($row['coauth3name'], $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['coauth3nationality']) ? $row['coauth3nationality'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap($row['coauth4name'], $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['coauth4nationality']) ? $row['coauth4nationality'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['coauth5name']) ? $row['coauth5name'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['coauth5nationality']) ? $row['coauth5nationality'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap($row['coauth1email'], $q) . "</td>";
+                $html .= "<td>" . $wrap($row['coauth2email'], $q) . "</td>";
+                $html .= "<td>" . $wrap($row['coauth3email'], $q) . "</td>";
+                $html .= "<td>" . $wrap($row['coauth4email'], $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['coauth5email']) ? $row['coauth5email'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['supervisor_name']) ? $row['supervisor_name'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['supervisor_nationality']) ? $row['supervisor_nationality'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['supervisor_contact']) ? $row['supervisor_contact'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap(isset($row['supervisor_email']) ? $row['supervisor_email'] : '', $q) . "</td>";
+                $html .= "<td>" . $wrap($row['email'], $q) . "</td>";
+                $html .= "<td>" . $wrap($row['profession'], $q) . "</td>";
+                $html .= "<td>" . $wrap($row['organization'], $q) . "</td>";
+                $html .= "<td>" . $wrap($row['category'], $q) . "</td>";
+                $html .= "<td>" . $wrap($row['contactno'], $q) . "</td>";
+                $html .= "<td><span class=\"password-display\" data-user-id=\"" . intval($row['id']) . "\">******</span></td>";
+                $html .= "<td>" . $wrap($row['companyref'], $q) . "</td>";
+                $html .= "<td>" . $wrap($row['posting_date'], $q) . "</td>";
+                
+                $attStatus = isset($row['attendance_status']) ? $row['attendance_status'] : '';
+                if (empty($attStatus)) {
+                    $attDisplay = 'Not Attended';
+                    $attStyle = 'color:red;';
+                } elseif ($attStatus == 'present' || $attStatus == 'late') {
+                    $attDisplay = ucfirst($attStatus);
+                    $attStyle = 'color:green; font-weight:bold;';
+                } else {
+                    $attDisplay = ucfirst($attStatus);
+                    $attStyle = 'color:orange;';
+                }
+                $html .= "<td style='" . $attStyle . "'>" . $attDisplay . "</td>";
 
-            echo "<td>";
-            echo "<select class='form-control input-sm' onchange='updateCertificateStatus(" . $row['id'] . ", this.value)' style='width: 100px; " . ($certStatus == 1 ? "border-color: #5cb85c; border-width: 2px;" : "") . "'>";
-            echo "<option value='0' " . ($certStatus == 0 ? "selected" : "") . ">Pending</option>";
-            echo "<option value='1' " . ($certStatus == 1 ? "selected" : "") . ">Sent</option>";
-            echo "</select>";
-            echo "</td>";
+                $html .= "<td>";
+                $html .= "<select class='form-control input-sm' onchange='updateCertificateStatus(" . $row['id'] . ", this.value)' style='width: 100px; " . ($certStatus == 1 ? "border-color: #5cb85c; border-width: 2px;" : "") . "'>";
+                $html .= "<option value='0' " . ($certStatus == 0 ? "selected" : "") . ">Pending</option>";
+                $html .= "<option value='1' " . ($certStatus == 1 ? "selected" : "") . ">Sent</option>";
+                $html .= "</select>";
+                $html .= "</td>";
 
-            echo "<td class='actions-cell'>";
-            if (!empty($row['abstract_filename'])) {
-                echo '<a href="download-abstract.php?id=' . $row['id'] . '" target="_blank" class="abstract-preview-link" title="Preview Abstract: ' . escape_html($row['abstract_filename']) . '"><button class="btn btn-success btn-xs"><i class="fa fa-file-text-o"></i></button></a> ';
+                $html .= "<td class='actions-cell'>";
+                if (!empty($row['abstract_filename'])) {
+                    $html .= '<a href="download-abstract.php?id=' . $row['id'] . '" target="_blank" class="abstract-preview-link" title="Preview Abstract: ' . escape_html($row['abstract_filename']) . '"><button class="btn btn-success btn-xs"><i class="fa fa-file-text-o"></i></button></a> ';
+                }
+                $html .= '<a href="welcome.php?uid=' . escape_html($row['id']) . '"><button class="btn btn-primary btn-xs" aria-label="Print profile"><i class="fa fa-print"></i></button></a> ';
+                $html .= '<a href="certificate-editor.php?uid=' . escape_html($row['id']) . '"><button class="btn btn-warning btn-xs" aria-label="Certificate"><i class="fa fa-certificate"></i></button></a> ';
+                $html .= '<a href="update-profile.php?uid=' . escape_html($row['id']) . '"><button class="btn btn-primary btn-xs" aria-label="Edit profile"><i class="fa fa-pencil"></i></button></a> ';
+                $html .= '<a href="manage-users.php?id=' . escape_html($row['id']) . '"><button class="btn btn-danger btn-xs" onClick="return confirm(\'Do you really want to delete\');" aria-label="Delete user"><i class="fa fa-trash-o "></i></button></a>';
+                $html .= ' <button class="btn btn-success btn-xs" onclick="openWhatsAppModal(' . escape_html($row['id']) . ')" title="Send via WhatsApp"><i class="fa fa-whatsapp"></i></button>';
+                $html .= "</td>";
+                $html .= "</tr>";
+                $cnt++;
+                $rowCount++;
             }
-            echo '<a href="welcome.php?uid=' . escape_html($row['id']) . '"><button class="btn btn-primary btn-xs" aria-label="Print profile"><i class="fa fa-print"></i></button></a> ';
-            echo '<a href="certificate-editor.php?uid=' . escape_html($row['id']) . '"><button class="btn btn-warning btn-xs" aria-label="Certificate"><i class="fa fa-certificate"></i></button></a> ';
-            echo '<a href="update-profile.php?uid=' . escape_html($row['id']) . '"><button class="btn btn-primary btn-xs" aria-label="Edit profile"><i class="fa fa-pencil"></i></button></a> ';
-            echo '<a href="manage-users.php?id=' . escape_html($row['id']) . '"><button class="btn btn-danger btn-xs" onClick="return confirm(\'Do you really want to delete\');" aria-label="Delete user"><i class="fa fa-trash-o "></i></button></a>';
-            echo "</td>";
-            echo "</tr>";
-            $cnt++;
+            // Log row count
+            file_put_contents('debug_log.txt', date('Y-m-d H:i:s') . " - Fetched Rows: $rowCount, HTML Length: " . strlen($html) . "\n", FILE_APPEND);
+        } else {
+            // $html remains empty, will be handled by JS
         }
-    } else {
-        echo '<tr><td colspan="21" class="text-center">No results found</td></tr>';
+
+        $response = [
+            'html' => $html,
+            'totalRecords' => $totalRecords,
+            'totalPages' => $totalPages,
+            'currentPage' => $page
+        ];
+        
+        $json = json_encode($response);
+        
+        if ($json === false) {
+            $json = json_encode([
+                'error' => 'JSON Encode Error: ' . json_last_error_msg(),
+                'partial_html' => substr($html, 0, 100) . '...'
+            ]);
+        }
+        
+        header('Content-Type: application/json');
+        echo $json;
+        exit;
+        
+    } catch (Exception $e) {
+        if (ob_get_length()) ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['error' => $e->getMessage()]);
+        exit;
     }
-    exit;
 }
 
 // checking session is valid for not 
@@ -407,7 +549,16 @@ if (isset($_GET['export_excel'])) {
     $headers[] = 'Company Ref';
     $headers[] = 'Posting Date';
     fputcsv($output, $headers);
-    $query = "SELECT * FROM users WHERE (source_system='poster' OR source_system='both' OR source_system IS NULL OR source_system='')";
+    // Select specific columns to avoid large blobs
+    $columns = "id, fname, postertitle, nationality, 
+                coauth1name, coauth1nationality, coauth1email,
+                coauth2name, coauth2nationality, coauth2email,
+                coauth3name, coauth3nationality, coauth3email,
+                coauth4name, coauth4nationality, coauth4email,
+                coauth5name, coauth5nationality, coauth5email,
+                supervisor_name, supervisor_nationality, supervisor_contact, supervisor_email,
+                email, profession, organization, category, contactno, password, companyref, posting_date";
+    $query = "SELECT $columns FROM users WHERE (source_system='poster' OR source_system='both' OR source_system IS NULL OR source_system='')";
     if ($scope === 'visible') {
         if (!empty($idList)) {
             $idString = implode(',', $idList);
@@ -549,7 +700,7 @@ if ($catRes) {
 
     <link href="assets/css/bootstrap.css" rel="stylesheet">
 
-    <link href="assets/font-awesome/css/font-awesome.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
 
     <link href="assets/css/style.css" rel="stylesheet">
     <link href="assets/css/style-responsive.css" rel="stylesheet">
@@ -576,12 +727,12 @@ if ($catRes) {
       }
 
       /* Ref Number Column - No Truncation */
-      #users-table th:nth-child(2), #users-table td:nth-child(2) {
+      #users-table th:nth-child(4), #users-table td:nth-child(4) {
           min-width: 150px;
           width: auto;
       }
       /* Override .cell-content styles for Ref Number only */
-      #users-table td:nth-child(2) .cell-content {
+      #users-table td:nth-child(4) .cell-content {
           white-space: nowrap !important;
           overflow: visible !important;
           text-overflow: clip !important;
@@ -593,6 +744,7 @@ if ($catRes) {
       }
 
       /* Hide specific columns by default (Co-authors and Emails) */
+      /*
       #users-table th:nth-child(6), #users-table td:nth-child(6),
       #users-table th:nth-child(7), #users-table td:nth-child(7),
       #users-table th:nth-child(8), #users-table td:nth-child(8),
@@ -612,6 +764,7 @@ if ($catRes) {
       #users-table th:nth-child(25), #users-table td:nth-child(25) {
           display: none;
       }
+      */
       
       .table-responsive-wrapper {
           width: 100%;
@@ -822,6 +975,19 @@ if ($catRes) {
                                 <option value="attended">Attended</option>
                                 <option value="not_attended">Not Attended</option>
                             </select>
+
+                            <label for="certificate-status-filter" style="margin-right:8px; margin-left: 15px;">Certificate:</label>
+                            <select id="certificate-status-filter" class="form-control" style="width:auto; display:inline-block;">
+                                <option value="">All</option>
+                                <option value="sent">Sent</option>
+                                <option value="not_sent">Not Sent</option>
+                            </select>
+
+                            <label for="date-start" style="margin-right:8px; margin-left: 15px;">Date:</label>
+                            <input type="date" id="date-start" class="form-control" style="width:auto; display:inline-block;" placeholder="Start Date" title="Start Date">
+                            <span style="margin: 0 5px;">to</span>
+                            <input type="date" id="date-end" class="form-control" style="width:auto; display:inline-block;" placeholder="End Date" title="End Date">
+
                             <button type="button" class="btn btn-default" id="clear-filters" style="margin-left:5px;">Clear Filters</button>
                           </div>
                         </div>
@@ -830,7 +996,7 @@ if ($catRes) {
                           <a href="manage-users.php?export_db=1&mode=download" class="btn btn-success" id="export-db" aria-label="Export database">Export Database</a>
                           <button type="button" class="btn btn-info" id="export-visible" aria-label="Export filtered rows to Excel">Export Filtered to Excel</button>
                           <button type="button" class="btn btn-info" id="export-all" aria-label="Export all rows to Excel">Export All to Excel</button>
-                          <button class="btn btn-warning" id="btn-bulk-email" onclick="openBulkEmailModal()" disabled style="margin-left: 5px;"><i class="fa fa-envelope"></i> Send Certificates</button>
+                          <button class="btn btn-warning" id="btn-bulk-email" disabled style="margin-left: 5px;"><i class="fa fa-envelope"></i> Send Certificates</button>
                           <label class="checkbox-inline" style="margin-left: 10px;">
                               <input type="checkbox" id="togglePasswords"> Show Passwords
                           </label>
@@ -843,6 +1009,7 @@ if ($catRes) {
 
                       <div class="content-panel">
                           <h4><i class="fa fa-angle-right"></i> All User Details </h4>
+                          <div id="js-debug-log" class="alert alert-warning" style="display:none; font-family: monospace; white-space: pre-wrap; max-height: 80px; overflow-y: auto;"></div>
                           <hr>
 
                           <div class="column-visibility-controls">
@@ -909,94 +1076,26 @@ if ($catRes) {
                                   <th>Company ref</th>
                                   <th>Reg. Date</th>
                                   <th>Attendance</th>
+                                  <th>Certificate Status</th>
                                   <th>Action</th>
                               </tr>
 
                               </thead>
 
-                              <tbody>
+                              <tbody id="user-rows">
 
-                              <?php $ret=mysqli_query($con,"SELECT users.*, attendance.status as attendance_status FROM users LEFT JOIN attendance ON users.id = attendance.user_id WHERE (source_system='poster' OR source_system='both' OR source_system IS NULL OR source_system='') ORDER BY users.id DESC");
-                              $cnt=1;
-                              $wrapInit = function($val, $short=false) {
-                                  $txt = (string)$val;
-                                  $cls = $short ? 'cell-content short' : 'cell-content';
-                                  return '<div class="' . $cls . '" title="' . htmlspecialchars($txt, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($txt, ENT_QUOTES, 'UTF-8') . '</div>';
-                              };
-                              while($row=mysqli_fetch_array($ret))
-                              {
-                                  $certStatus = isset($row['certificate_sent']) ? $row['certificate_sent'] : 0;
-                                  echo "<tr data-user-id=\"" . intval($row['id']) . "\">";
-                                  echo "<td><input type='checkbox' class='user-checkbox' value='" . $row['id'] . "' onchange='updateBulkButton()'></td>";
-                                  echo "<td><button class=\"btn btn-primary btn-xs print-user-btn\" data-user-id=\"" . intval($row['id']) . "\" data-main=\"" . htmlspecialchars($row['fname'], ENT_QUOTES, 'UTF-8') . "\" data-co1=\"" . htmlspecialchars($row['coauth1name'], ENT_QUOTES, 'UTF-8') . "\" data-co2=\"" . htmlspecialchars($row['coauth2name'], ENT_QUOTES, 'UTF-8') . "\" data-co3=\"" . htmlspecialchars($row['coauth3name'], ENT_QUOTES, 'UTF-8') . "\" data-co4=\"" . htmlspecialchars($row['coauth4name'], ENT_QUOTES, 'UTF-8') . "\" data-co5=\"" . htmlspecialchars(isset($row['coauth5name']) ? $row['coauth5name'] : '', ENT_QUOTES, 'UTF-8') . "\"><i class=\"fa fa-print\"></i></button></td>";
-                                  echo "<td>" . $wrapInit($cnt, true) . "</td>";
-                                  echo "<td>" . $wrapInit($row['id'], false) . "</td>";
-                                  echo "<td>" . $wrapInit($row['fname']) . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['postertitle']) ? $row['postertitle'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['nationality']) ? $row['nationality'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit($row['coauth1name']) . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['coauth1nationality']) ? $row['coauth1nationality'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit($row['coauth2name']) . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['coauth2nationality']) ? $row['coauth2nationality'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit($row['coauth3name']) . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['coauth3nationality']) ? $row['coauth3nationality'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit($row['coauth4name']) . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['coauth4nationality']) ? $row['coauth4nationality'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['coauth5name']) ? $row['coauth5name'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['coauth5nationality']) ? $row['coauth5nationality'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit($row['coauth1email']) . "</td>";
-                                  echo "<td>" . $wrapInit($row['coauth2email']) . "</td>";
-                                  echo "<td>" . $wrapInit($row['coauth3email']) . "</td>";
-                                  echo "<td>" . $wrapInit($row['coauth4email']) . "</td>";
-                                  echo "<td>" . $wrapInit($row['coauth5email']) . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['supervisor_name']) ? $row['supervisor_name'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['supervisor_nationality']) ? $row['supervisor_nationality'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['supervisor_contact']) ? $row['supervisor_contact'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit(isset($row['supervisor_email']) ? $row['supervisor_email'] : '') . "</td>";
-                                  echo "<td>" . $wrapInit($row['email']) . "</td>";
-                                  echo "<td>" . $wrapInit($row['profession']) . "</td>";
-                                  echo "<td>" . $wrapInit($row['organization']) . "</td>";
-                                  echo "<td>" . $wrapInit($row['category']) . "</td>";
-                                  echo "<td>" . $wrapInit($row['contactno']) . "</td>";
-                                  echo "<td><span class=\"password-display\" data-user-id=\"" . intval($row['id']) . "\">******</span></td>";
-                                  echo "<td>" . $wrapInit($row['companyref']) . "</td>";
-                                  echo "<td>" . $wrapInit($row['posting_date']) . "</td>";
-                                  
-                                  $attStatus = isset($row['attendance_status']) ? $row['attendance_status'] : '';
-                                  if (empty($attStatus)) {
-                                      $attDisplay = 'Not Attended';
-                                      $attStyle = 'color:red;';
-                                  } elseif ($attStatus == 'present' || $attStatus == 'late') {
-                                      $attDisplay = ucfirst($attStatus);
-                                      $attStyle = 'color:green; font-weight:bold;';
-                                  } else {
-                                      $attDisplay = ucfirst($attStatus);
-                                      $attStyle = 'color:orange;';
-                                  }
-                                  echo "<td style='" . $attStyle . "'>" . $attDisplay . "</td>";
-
-                                  echo "<td>";
-                                  echo "<select class='form-control input-sm' onchange='updateCertificateStatus(" . $row['id'] . ", this.value)' style='width: 100px; " . ($certStatus == 1 ? "border-color: #5cb85c; border-width: 2px;" : "") . "'>";
-                                  echo "<option value='0' " . ($certStatus == 0 ? "selected" : "") . ">Pending</option>";
-                                  echo "<option value='1' " . ($certStatus == 1 ? "selected" : "") . ">Sent</option>";
-                                  echo "</select>";
-                                  echo "</td>";
-
-                                  echo "<td class='actions-cell'>";
-                                  if (!empty($row['abstract_filename'])) {
-                                      echo '<a href="download-abstract.php?id=' . $row['id'] . '" target="_blank" class="abstract-preview-link" title="Preview Abstract: ' . htmlspecialchars($row['abstract_filename'], ENT_QUOTES, 'UTF-8') . '"><button class="btn btn-success btn-xs"><i class="fa fa-file-text-o"></i></button></a> ';
-                                  }
-                                  echo '<button class="btn btn-primary btn-xs print-user-btn" data-user-id="' . intval($row['id']) . '"><i class="fa fa-print"></i></button> ';
-                                  echo '<a href="update-profile.php?uid=' . htmlspecialchars($row['id']) . '"><button class="btn btn-primary btn-xs"><i class="fa fa-pencil"></i></button></a> ';
-                                  echo '<a href="manage-users.php?id=' . htmlspecialchars($row['id']) . '"><button class="btn btn-danger btn-xs" onClick="return confirm(\'Do you really want to delete\');"><i class="fa fa-trash-o "></i></button></a>';
-                                  echo "</td>";
-                                  echo "</tr>";
-                                  $cnt++;
-                              }?>
+                              <!-- Rows will be populated via AJAX -->
+                              <tr><td colspan="37" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading data...</td></tr>
 
                               </tbody>
 
                           </table>
+                          </div>
+                          
+                          <div class="row" style="margin-top: 15px;">
+                              <div class="col-md-12 text-center" id="pagination-controls">
+                                  <!-- Pagination will be rendered here -->
+                              </div>
                           </div>
 
                       </div>
@@ -1071,6 +1170,50 @@ if ($catRes) {
       </div>
   </div>
 
+  <div aria-hidden="true" aria-labelledby="whatsappChoiceLabel" role="dialog" tabindex="-1" id="whatsappChoiceModal" class="modal fade">
+      <div class="modal-dialog">
+          <div class="modal-content">
+              <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                  <h4 class="modal-title" id="whatsappChoiceLabel">Select Author To Send WhatsApp</h4>
+              </div>
+              <div class="modal-body">
+                  <input type="hidden" id="whatsapp-user-id">
+                  <div class="radio">
+                      <label><input type="radio" name="whatsapp-author" value="main" checked> Main author</label>
+                  </div>
+                  <div class="radio">
+                      <label><input type="radio" name="whatsapp-author" value="co1"> Co-author 1</label>
+                  </div>
+                  <div class="radio">
+                      <label><input type="radio" name="whatsapp-author" value="co2"> Co-author 2</label>
+                  </div>
+                  <div class="radio">
+                      <label><input type="radio" name="whatsapp-author" value="co3"> Co-author 3</label>
+                  </div>
+                  <div class="radio">
+                      <label><input type="radio" name="whatsapp-author" value="co4"> Co-author 4</label>
+                  </div>
+                  <div class="radio">
+                      <label><input type="radio" name="whatsapp-author" value="co5"> Co-author 5</label>
+                  </div>
+                  <div class="form-group" style="margin-top: 15px;">
+                      <label>Phone Number (with Country Code)</label>
+                      <input type="text" class="form-control" id="whatsapp-phone" placeholder="e.g. 971501234567">
+                  </div>
+                  <div class="form-group">
+                      <label>Message (Optional)</label>
+                      <textarea class="form-control" id="whatsapp-message" rows="3" placeholder="Enter custom message here..."></textarea>
+                  </div>
+              </div>
+              <div class="modal-footer">
+                  <button data-dismiss="modal" class="btn btn-default" type="button">Cancel</button>
+                  <button class="btn btn-success" type="button" id="whatsapp-author-confirm"><i class="fa fa-whatsapp"></i> Send</button>
+              </div>
+          </div>
+      </div>
+  </div>
+
   <!-- Bulk Email/Certificate Modal -->
   <div aria-hidden="true" aria-labelledby="bulkEmailLabel" role="dialog" tabindex="-1" id="bulk-email-modal" class="modal fade">
       <div class="modal-dialog" style="width: 95%; max-width: 1400px;">
@@ -1096,14 +1239,44 @@ if ($catRes) {
                               
                               <hr>
                               <h5>Certificate Options</h5>
-                              <div class="checkbox">
+                            
+                            <div class="radio">
                                   <label>
-                                      <input type="checkbox" id="use-template" checked> Generate Certificate from Template
+                                      <input type="radio" name="certificate-mode" value="links" checked> Send Certificate Links
                                   </label>
                               </div>
                               
-                              <div class="form-group" id="template-group">
-                                  <label>Select Template</label>
+                              <!-- Author Selection for Links -->
+                              <div id="bulk-links-author-selection" style="margin-left: 20px; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee;">
+                                  <p style="margin: 0 0 5px 0; font-weight: bold; font-size: 12px;">Select Author Role:</p>
+                                  <div class="radio">
+                                      <label><input type="radio" name="bulk-author-role" value="main" checked> Main Author</label>
+                                  </div>
+                                  <div class="radio">
+                                      <label><input type="radio" name="bulk-author-role" value="co1"> Co-Author 1</label>
+                                  </div>
+                                  <div class="radio">
+                                      <label><input type="radio" name="bulk-author-role" value="co2"> Co-Author 2</label>
+                                  </div>
+                                  <div class="radio">
+                                      <label><input type="radio" name="bulk-author-role" value="co3"> Co-Author 3</label>
+                                  </div>
+                                  <div class="radio">
+                                      <label><input type="radio" name="bulk-author-role" value="co4"> Co-Author 4</label>
+                                  </div>
+                                  <div class="radio">
+                                      <label><input type="radio" name="bulk-author-role" value="co5"> Co-Author 5</label>
+                                  </div>
+                              </div>
+
+                              <div class="radio">
+                                <label>
+                                    <input type="radio" name="certificate-mode" value="template"> Generate Certificate from Template
+                                </label>
+                            </div>
+                            
+                            <div class="form-group" id="template-group" style="display:none;">
+                                <label>Select Template</label>
                                   <div style="display: flex; gap: 5px;">
                                       <select id="certificate-template" class="form-control">
                                           <option value="">Loading...</option>
@@ -1253,9 +1426,10 @@ if ($catRes) {
                       alert('Error updating status: Invalid server response');
                   }
               },
-              error: function() {
+              error: function(xhr, status, error) {
+                  console.error("AJAX Error:", status, error, xhr.responseText);
                   select.disabled = false;
-                  alert('Network error occurred');
+                  alert('Network error occurred: ' + error);
                   // Revert
                   select.value = status == 1 ? 0 : 1;
               }
@@ -1280,29 +1454,74 @@ if ($catRes) {
           }
       }
 
-      function updateBulkButton() {
-          var count = $('.user-checkbox:checked').length;
-          var btn = $('#btn-bulk-email');
-          // If button doesn't exist, try to find it or create it (usually it should exist in DOM)
-          if(btn.length === 0) {
-             // In case it's named differently or we need to add it dynamically
-             // For now assume it exists or will be added
-          }
-          
-          if (count > 0) {
-              btn.prop('disabled', false);
-              btn.text('Send Certificates (' + count + ')');
-          } else {
-              btn.prop('disabled', true);
-              btn.text('Send Certificates');
-          }
-          $('#bulk-selection-count-modal').text(count + ' users selected');
-      }
-
       // Open Modal
       $(document).on('click', '#btn-bulk-email', function() {
           var count = $('.user-checkbox:checked').length;
           if (count === 0) return;
+          
+          // Reset labels to generic first
+          $('input[name="bulk-author-role"]').parent().contents().filter(function(){ return this.nodeType === 3; }).remove();
+          $('input[name="bulk-author-role"][value="main"]').parent().append(' Main Author');
+          $('input[name="bulk-author-role"][value="co1"]').parent().append(' Co-Author 1');
+          $('input[name="bulk-author-role"][value="co2"]').parent().append(' Co-Author 2');
+          $('input[name="bulk-author-role"][value="co3"]').parent().append(' Co-Author 3');
+          $('input[name="bulk-author-role"][value="co4"]').parent().append(' Co-Author 4');
+          $('input[name="bulk-author-role"][value="co5"]').parent().append(' Co-Author 5');
+          
+          // Show all options by default
+          $('input[name="bulk-author-role"]').closest('.radio').show();
+          
+          // If single user, populate names like WhatsApp modal
+          if (count === 1) {
+              var uid = $('.user-checkbox:checked').val();
+              
+              // Fetch user data
+              $.ajax({
+                  url: 'manage-users.php', // Same file handles this action
+                  method: 'POST',
+                  data: { action: 'get_whatsapp_data', uid: uid }, // Reusing existing action
+                  dataType: 'json',
+                  success: function(response) {
+                      if(response.status === 'success') {
+                          var u = response.data;
+                          
+                          // Helper to format phone
+                          function formatP(p) {
+                              if(!p) return '';
+                              p = p.replace(/[^0-9]/g, '');
+                              if(p.startsWith('00')) p = p.substring(2);
+                              else if(p.startsWith('0')) p = '971' + p.substring(1);
+                              return p;
+                          }
+
+                          // Update Main Author Label
+                          var mainName = (u.fname || '') + (u.lname ? ' ' + u.lname : '');
+                          var mainPhone = formatP(u.contactno);
+                          var $mainInput = $('input[name="bulk-author-role"][value="main"]');
+                          $mainInput.parent().contents().filter(function(){ return this.nodeType === 3; }).remove();
+                          $mainInput.parent().append(' Main Author (' + mainName + ' - ' + mainPhone + ')');
+
+                          // Update Co-authors
+                          for(var i=1; i<=5; i++) {
+                              var coName = u['coauth'+i+'name'];
+                              var $coInput = $('input[name="bulk-author-role"][value="co'+i+'"]');
+                              
+                              if(coName) {
+                                  var coRawPhone = u['coauth'+i+'contact'];
+                                  var coPhone = formatP(coRawPhone);
+                                  if(!coPhone) coPhone = mainPhone; 
+                                  
+                                  $coInput.closest('.radio').show();
+                                  $coInput.parent().contents().filter(function(){ return this.nodeType === 3; }).remove();
+                                  $coInput.parent().append(' Co-Author '+i+' (' + coName + ' - ' + coPhone + ')');
+                              } else {
+                                  $coInput.closest('.radio').hide();
+                              }
+                          }
+                      }
+                  }
+              });
+          }
           
           // Load Templates
           var $select = $('#certificate-template');
@@ -1350,16 +1569,21 @@ if ($catRes) {
       }
 
       // Start Bulk Process
-      function startBulkProcess() {
-          if (!$('#confirm-preview').is(':checked')) {
-              alert('Please confirm the template preview.');
-              return;
-          }
+      async function startBulkProcess() {
+          var mode = $('input[name="certificate-mode"]:checked').val();
+          var role = $('input[name="bulk-author-role"]:checked').val();
           
-          bulkTemplateId = $('#certificate-template').val();
-          if (!bulkTemplateId) {
-              alert('Please select a template.');
-              return;
+          if (mode === 'template') {
+              if (!$('#confirm-preview').is(':checked')) {
+                  alert('Please confirm the template preview.');
+                  return;
+              }
+              
+              bulkTemplateId = $('#certificate-template').val();
+              if (!bulkTemplateId) {
+                  alert('Please select a template.');
+                  return;
+              }
           }
           
           bulkOverrideEmail = '';
@@ -1371,7 +1595,7 @@ if ($catRes) {
               }
           }
 
-          bulkQueue = [];
+          var bulkQueue = [];
           $('.user-checkbox:checked').each(function() {
               bulkQueue.push($(this).val());
           });
@@ -1382,60 +1606,141 @@ if ($catRes) {
           $('#bulkEmailForm').hide();
           $('#bulk-progress-container').show();
           $('#btn-start-bulk').prop('disabled', true);
-          $('#btn-cancel-bulk').prop('disabled', true); // Prevent closing during process
+          $('#btn-cancel-bulk').prop('disabled', true); 
           
           $('#bulk-report-table tbody').empty();
           bulkSuccessCount = 0;
           bulkFailCount = 0;
           
           bulkProcessing = true;
-          processNextBulkUser();
+          
+          // Prepare Attachments (for Links mode)
+          var batchId = '';
+          if (mode === 'links') {
+             var fileInput = document.getElementById('bulk-attachments');
+             if (fileInput && fileInput.files.length > 0) {
+                 $('#bulk-status-text').text('Uploading attachments...');
+                 try {
+                     var formData = new FormData();
+                     var generatedBatchId = 'batch_' + Date.now();
+                     formData.append('action', 'prepare_bulk_upload');
+                     formData.append('batch_id', generatedBatchId);
+                     for (var i = 0; i < fileInput.files.length; i++) {
+                         formData.append('attachments[]', fileInput.files[i]);
+                     }
+                     
+                     var res = await new Promise((resolve, reject) => {
+                         $.ajax({
+                             url: 'ajax_handler.php',
+                             method: 'POST',
+                             data: formData,
+                             processData: false,
+                             contentType: false,
+                             dataType: 'json',
+                             success: resolve,
+                             error: function(xhr, status, err) { reject(err || status); }
+                         });
+                     });
+                     
+                     if (res.status === 'success') {
+                         batchId = generatedBatchId;
+                     } else {
+                         throw new Error(res.message);
+                     }
+                 } catch (e) {
+                     alert('Attachment upload failed: ' + e);
+                     finishBulkProcess();
+                     return;
+                 }
+             }
+          }
+
+          // Async Loop
+          for (var i = 0; i < bulkQueue.length; i++) {
+              if (!bulkProcessing) break;
+              
+              var uid = bulkQueue[i];
+              var current = i + 1;
+              var total = bulkQueue.length;
+              var percent = Math.round((current / total) * 100);
+              
+              $('#bulk-progress-bar').css('width', percent + '%').text(percent + '%');
+              $('#bulk-status-text').text('Processing User ID: ' + uid + ' (' + current + '/' + total + ')');
+              
+              try {
+                  var result;
+                  if (mode === 'links') {
+                      result = await sendSingleLink(uid, batchId, bulkOverrideEmail, role);
+                  } else {
+                      result = await sendSingleTemplate(uid, bulkTemplateId, bulkOverrideEmail, role);
+                  }
+                  
+                  handleBulkResult(uid, result.status, result.message);
+              } catch (e) {
+                  handleBulkResult(uid, 'error', e.message || 'Unknown Error');
+              }
+              
+              // Delay
+              var delay = parseInt($('#email-delay').val()) * 1000 || 5000;
+              await new Promise(r => setTimeout(r, delay));
+          }
+          
+          finishBulkProcess();
       }
 
-      function processNextBulkUser() {
-          if (bulkQueue.length === 0 || !bulkProcessing) {
-              finishBulkProcess();
-              return;
-          }
-          
-          var uid = bulkQueue.shift();
-          var delay = parseInt($('#email-delay').val()) * 1000 || 5000; // Delay in ms
-          
-          // Update Status
-          var total = $('.user-checkbox:checked').length;
-          var current = total - bulkQueue.length;
-          var percent = Math.round((current / total) * 100);
-          
-          $('#bulk-progress-bar').css('width', percent + '%').text(percent + '%');
-          $('#bulk-status-text').text('Processing User ID: ' + uid + ' (' + current + '/' + total + ')');
-          
-          // Use Iframe to Generate & Send
-          var $container = $('#certificate-preview');
-          // Load Editor in Iframe with autogen params
-          // autogen=true, template_id=..., uid=...
-          var iframeUrl = 'certificate-editor.php?uid=' + uid + '&autogen=true&template_id=' + bulkTemplateId;
-          if (bulkOverrideEmail) {
-              iframeUrl += '&override_email=' + encodeURIComponent(bulkOverrideEmail);
-          }
-          
-          $container.html('<iframe id="processing-frame-' + uid + '" src="' + iframeUrl + '" style="width:100%; height:100%; border:none;"></iframe>');
-          
-          // Timeout failsafe (e.g. 30 seconds per user)
-          var timeout = setTimeout(function() {
-              if (document.getElementById('processing-frame-' + uid)) {
-                  handleBulkResult(uid, 'error', 'Timeout');
+      function sendSingleLink(uid, batchId, overrideEmail, role) {
+          return new Promise((resolve) => {
+              $.ajax({
+                  url: 'ajax_handler.php',
+                  type: 'POST',
+                  dataType: 'json',
+                  data: {
+                      action: 'send_bulk_single',
+                      uid: uid,
+                      batch_id: batchId,
+                      override_email: overrideEmail,
+                      role: role
+                  },
+                  success: function(res) {
+                      resolve(res);
+                  },
+                  error: function(xhr, status, error) {
+                      resolve({ status: 'error', message: 'AJAX Error: ' + error });
+                  }
+              });
+          });
+      }
+      
+      function sendSingleTemplate(uid, templateId, overrideEmail, role) {
+          return new Promise((resolve) => {
+              // Iframe Logic wrapped in Promise
+              var $container = $('#certificate-preview');
+              var iframeUrl = 'certificate-editor.php?uid=' + uid + '&autogen=true&template_id=' + templateId;
+              if (role) {
+                  iframeUrl += '&role=' + role;
               }
-          }, 30000);
-          
-          // Listen for message from iframe
-          var messageHandler = function(event) {
-              if (event.data && event.data.action === 'CERT_PROCESSED' && event.data.uid == uid) {
-                  clearTimeout(timeout);
+              if (overrideEmail) {
+                  iframeUrl += '&override_email=' + encodeURIComponent(overrideEmail);
+              }
+              
+              var iframeId = 'processing-frame-' + uid;
+              $container.html('<iframe id="' + iframeId + '" src="' + iframeUrl + '" style="width:100%; height:100%; border:none;"></iframe>');
+              
+              var messageHandler;
+              var timeout = setTimeout(function() {
                   window.removeEventListener('message', messageHandler);
-                  handleBulkResult(uid, event.data.status, event.data.message);
-              }
-          };
-          window.addEventListener('message', messageHandler);
+                  resolve({ status: 'error', message: 'Timeout (90s)' });
+              }, 90000);
+              
+              messageHandler = function(event) {
+                  if (event.data && (event.data.action === 'CERT_PROCESSED' || event.data.type === 'CERT_PROCESSED') && event.data.uid == uid) {
+                      clearTimeout(timeout);
+                      window.removeEventListener('message', messageHandler);
+                      resolve(event.data);
+                  }
+              };
+              window.addEventListener('message', messageHandler);
+          });
       }
 
       function handleBulkResult(uid, status, message) {
@@ -1447,7 +1752,7 @@ if ($catRes) {
           
           // Get User Name (from table)
           var name = $('tr[data-user-id="' + uid + '"] td:nth-child(5)').text() || 'Unknown';
-          var email = $('tr[data-user-id="' + uid + '"] td:nth-child(26)').text() || 'Unknown'; // Adjust index if needed
+          var email = $('tr[data-user-id="' + uid + '"] td:nth-child(26)').text() || 'Unknown'; 
           
           var row = '<tr class="' + rowClass + '">' +
               '<td>' + ($('#bulk-report-table tbody tr').length + 1) + '</td>' +
@@ -1459,39 +1764,25 @@ if ($catRes) {
               '</tr>';
           
           $('#bulk-report-table tbody').prepend(row);
-          
-          // Wait delay then next
-          var delay = parseInt($('#email-delay').val()) * 1000 || 5000;
-          setTimeout(processNextBulkUser, delay);
       }
 
       function finishBulkProcess() {
           bulkProcessing = false;
           $('#bulk-status-text').text('Completed! Success: ' + bulkSuccessCount + ', Failed: ' + bulkFailCount);
           $('#btn-cancel-bulk').prop('disabled', false).text('Close');
-          
-          // Update stats
           $('#bulk-summary-stats').text('Success: ' + bulkSuccessCount + ' | Failed: ' + bulkFailCount);
           
-          // Enable retry for failed
           if (bulkFailCount > 0) {
-             // Add logic to re-queue failed users if needed
              var btnRetry = $('<button class="btn btn-warning btn-sm" style="margin-right:10px;">Retry Failed</button>');
              btnRetry.click(function() {
-                 // Select only failed rows
                  $('.user-checkbox').prop('checked', false);
                  $('#bulk-report-table tbody tr.danger').each(function() {
-                     var txt = $(this).find('td:nth-child(3)').text(); // Name... hard to map back to ID efficiently without ID in table
-                     // Better: store ID in row data
+                     // For now simple alert
+                     alert('Please manually select failed users to retry.');
                  });
-                 // For now simple alert
-                 alert('Please manually select failed users to retry.');
              });
              $('#bulk-summary-stats').append(btnRetry);
           }
-          
-          // Refresh main table to show Sent status
-          // location.reload(); // Optional
       }
 
 
@@ -1531,13 +1822,13 @@ if ($catRes) {
 
           // Column Visibility Logic - Direct DOM Manipulation
           var columnMap = {
-              'hide-coauth1': [7, 8],
-              'hide-coauth2': [9, 10],
-              'hide-coauth3': [11, 12],
-              'hide-coauth4': [13, 14],
-              'hide-coauth5': [15, 16],
-              'hide-supervisor': [22, 23, 24],
-              'hide-emails': [17, 18, 19, 20, 21, 25, 26]
+              'hide-coauth1': [8, 9],
+              'hide-coauth2': [10, 11],
+              'hide-coauth3': [12, 13],
+              'hide-coauth4': [14, 15],
+              'hide-coauth5': [16, 17],
+              'hide-supervisor': [23, 24, 25, 26],
+              'hide-emails': [18, 19, 20, 21, 22, 26, 27]
           };
 
           window.applyColumnVisibility = function() {
@@ -1778,42 +2069,183 @@ if ($catRes) {
           });
       });
 
-      (function(){
+      $(document).ready(function(){
         var $input = $('#users-search');
         var $clear = $('#clear-search');
-        var $tbody = $('#users-table tbody');
+        var $tbody = $('#users-table tbody'); // Ensure this matches <table id="users-table"><tbody id="user-rows">
+        if ($tbody.length === 0) {
+            // Fallback if selector fails
+            $tbody = $('#user-rows');
+        }
         var $status = $('#search-status');
+        var $pagination = $('#pagination-controls');
+        var $debugLog = $('#js-debug-log');
         var timer = null;
+        var currentPage = 1;
+        var currentRequest = null;
+
         function updateStatus(text){ $status.text(text); }
+        function logDebug(msg, isError) {
+            console.log(msg);
+            if (isError) {
+                $debugLog.removeClass('alert-info').addClass('alert-danger');
+                console.error(msg);
+            } else {
+                //$debugLog.removeClass('alert-danger').addClass('alert-info');
+            }
+            $debugLog.append((new Date().toLocaleTimeString()) + ': ' + msg + '\n').show();
+        }
         
-        // Expose fetchRows to window
-        window.fetchRows = function(q, callback){
-          $.ajax({
+        $('#category-filter, #attendance-filter, #certificate-status-filter, #date-start, #date-end, #rows-per-page').on('change', function(){
+            window.fetchRows($input.val());
+        });
+        
+        window.fetchRows = function(q, callback, page){
+          var cat = $('#category-filter').val();
+          var certStatus = $('#certificate-status-filter').val();
+          var attendanceStatus = $('#attendance-filter').val();
+          var dateStart = $('#date-start').val();
+          var dateEnd = $('#date-end').val();
+          var limit = $('#rows-per-page').val() || '100';
+          page = page || 1;
+          currentPage = page;
+          
+          // Abort previous request if running to prevent race conditions
+          if(currentRequest) {
+              currentRequest.abort();
+          }
+          
+          logDebug('Fetching rows... q=' + q + ', page=' + page);
+          
+          currentRequest = $.ajax({
             url: 'manage-users.php',
             method: 'GET',
-            data: { ajax: 1, search: q, category: $('#category-filter').val() || '', attendance: $('#attendance-filter').val() || '', limit: $('#rows-per-page').val() || '100' },
-            success: function(html){
-              $tbody.html(html);
-              // Re-apply visibility after AJAX update
+            dataType: 'json',
+            data: { 
+                ajax: 1, 
+                search: q, 
+                category: cat,
+                certificate_status: certStatus,
+                attendance_status: attendanceStatus,
+                date_start: dateStart,
+                date_end: dateEnd,
+                page: page,
+                limit: limit
+            },
+            success: function(data){
+              logDebug('AJAX Success. Records: ' + (data.totalRecords || 0));
+              if (data.error) {
+                  logDebug("Server Error: " + data.error, true);
+                  updateStatus('Error: ' + data.error);
+                  $tbody.html('<tr><td colspan="37" class="text-center text-danger">' + data.error + '</td></tr>');
+                  return;
+              }
+              
+              if (!data.html) {
+                  logDebug("Warning: Empty HTML returned", true);
+              }
+              
+              $tbody.html(data.html);
+              renderPagination(data.totalPages, data.currentPage);
+              
+              // Reset Select All checkbox
+              $('#select-all-users').prop('checked', false);
+              
+              if (window.updateBulkButton) window.updateBulkButton();
+              
               if (window.applyColumnVisibility) {
                   window.applyColumnVisibility();
               }
-              var count = $tbody.find('tr').length;
-              if (count === 1 && $tbody.find('td').length === 1) {
+              
+              var count = data.totalRecords; 
+              if (count === 0) {
                 updateStatus('No results found');
               } else {
                 updateStatus('Showing ' + count + ' result' + (count===1?'':'s'));
               }
               if (callback) callback();
             },
-            error: function(){
-              updateStatus('Error fetching results');
+            error: function(xhr, status, error){
+              if (status === 'abort') return;
+              logDebug("AJAX Error: " + status + " " + error, true);
+              logDebug("Response: " + xhr.responseText.substring(0, 200), true);
+              updateStatus('Error fetching results: ' + error);
               if (callback) callback();
+            },
+            complete: function() {
+                currentRequest = null;
             }
           });
         };
         
-        // Check for saved search query
+        function renderPagination(totalPages, currentPage) {
+            if (totalPages <= 1) {
+                $pagination.empty();
+                return;
+            }
+            
+            var html = '<nav aria-label="Page navigation"><ul class="pagination">';
+            
+            // Previous
+            if (currentPage > 1) {
+                html += '<li><a href="#" data-page="' + (currentPage - 1) + '" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>';
+            } else {
+                html += '<li class="disabled"><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>';
+            }
+            
+            // Page info
+            var startPage = Math.max(1, currentPage - 2);
+            var endPage = Math.min(totalPages, currentPage + 2);
+            
+            if (startPage > 1) {
+                html += '<li><a href="#" data-page="1">1</a></li>';
+                if (startPage > 2) html += '<li class="disabled"><span>...</span></li>';
+            }
+            
+            for (var i = startPage; i <= endPage; i++) {
+                if (i === currentPage) {
+                    html += '<li class="active"><span>' + i + ' <span class="sr-only">(current)</span></span></li>';
+                } else {
+                    html += '<li><a href="#" data-page="' + i + '">' + i + '</a></li>';
+                }
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += '<li class="disabled"><span>...</span></li>';
+                html += '<li><a href="#" data-page="' + totalPages + '">' + totalPages + '</a></li>';
+            }
+            
+            // Next
+            if (currentPage < totalPages) {
+                html += '<li><a href="#" data-page="' + (currentPage + 1) + '" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>';
+            } else {
+                html += '<li class="disabled"><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>';
+            }
+            
+            html += '</ul></nav>';
+            $pagination.html(html);
+        }
+        
+        // Rows Per Page Change Handler
+        $('#rows-per-page').change(function() {
+            var q = $input.val();
+            window.fetchRows(q, null, 1);
+        });
+        
+        // Pagination Click Handler
+        $pagination.on('click', 'a', function(e) {
+            e.preventDefault();
+            var page = $(this).data('page');
+            if (page) {
+                var q = $input.val();
+                window.fetchRows(q, null, page);
+                // Scroll to top of table
+                $('html, body').animate({
+                    scrollTop: $("#users-table").offset().top - 100
+                }, 500);
+            }
+        });
+        
         var savedSearch = (function(name) {
           var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
           return v ? v[2] : null;
@@ -1822,6 +2254,9 @@ if ($catRes) {
         if (savedSearch && savedSearch !== '') {
           $input.val(savedSearch);
           setTimeout(function() { window.fetchRows(savedSearch); }, 100);
+        } else {
+            // Initial load
+            setTimeout(function() { window.fetchRows(''); }, 100);
         }
 
         $input.on('input', function(){
@@ -1833,19 +2268,24 @@ if ($catRes) {
           if (timer) { clearTimeout(timer); }
           timer = setTimeout(function(){ window.fetchRows(q); }, 300);
         });
+        
         $clear.on('click', function(){
           $input.val('');
           document.cookie = 'search_query=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+          $('#category-filter').val('').trigger('change'); 
           window.fetchRows('');
           $input.focus();
         });
+        
         $input.on('keydown', function(e){
           if (e.key === 'Escape') {
             $clear.click();
           }
         });
-      })();
-
+      });
+  </script>
+  <script>
+      // Verify admin password for viewing user passwords
       $('#passwordVerifyModal').on('hidden.bs.modal', function () {
           var firstPwd = $('.password-display').first().text();
           if (firstPwd === '******') {
@@ -1887,35 +2327,20 @@ if ($catRes) {
           });
       };
 
-  </script>
-
-
-
-  <script>
-// Bulk Email Logic
-var bulkCancelled = false;
-
-window.openBulkEmailModal = function() {
-    var count = $('.user-checkbox:checked').length;
-    $('#bulk-selection-count-modal').text(count + ' users selected');
-    $('#bulk-email-modal').modal('show');
-    
-    // Reset UI
-    $('#bulkEmailForm').show();
-    $('#bulk-progress-container').hide();
-    
-    // Preview & Confirmation Reset
-    $('#preview-confirm-container').hide();
-    $('#confirm-preview').prop('checked', false);
-    $('#btn-start-bulk').show().prop('disabled', true); // Require confirmation first
-    $('#preview-template-name').text('No template loaded');
-    
-    // Clear preview area
-    $('#certificate-preview').html('<div style="display: flex; height: 100%; align-items: center; justify-content: center; color: #999;">Preview will appear here...</div>');
+      window.openBulkEmailModal = function() {
+          $('#certificate-preview').html('<div style="display: flex; height: 100%; align-items: center; justify-content: center; color: #999;">Preview will appear here...</div>');
     
     $('#btn-cancel-bulk').text('Close').prop('disabled', false);
     $('#bulk-report-table tbody').empty();
     $('#bulk-summary-stats').text('');
+
+    // Reset Mode to Links
+    $('input[name="certificate-mode"][value="links"]').prop('checked', true);
+    $('#bulk-links-author-selection').show();
+    $('#template-group').hide();
+    $('#preview-confirm-container').hide();
+    // Reset Role to Main
+    $('input[name="bulk-author-role"][value="main"]').prop('checked', true);
     
     // Load Templates
     $.ajax({
@@ -2015,16 +2440,17 @@ window.loadTemplatePreview = async function() {
 };
 
 window.startBulkProcess = async function() {
-    var useTemplate = $('#use-template').is(':checked');
+    var mode = $('input[name="certificate-mode"]:checked').val();
     var templateId = $('#certificate-template').val();
     var delay = parseInt($('#email-delay').val()) || 5;
+    var bulkOverrideEmail = $('#bulk-use-override-email').is(':checked') ? $('#bulk-override-email').val() : '';
     
-    if (useTemplate && !templateId) {
+    if (mode === 'template' && !templateId) {
         alert('Please select a certificate template');
         return;
     }
     
-    if (!confirm('Are you sure you want to send emails to ' + $('.user-checkbox:checked').length + ' users?')) {
+    if (!confirm('Are you sure you want to send ' + (mode==='links'?'email links':'certificates') + ' to ' + $('.user-checkbox:checked').length + ' users?')) {
         return;
     }
     
@@ -2042,22 +2468,51 @@ window.startBulkProcess = async function() {
     $('.user-checkbox:checked').each(function() {
         bulkUsers.push($(this).val());
     });
+
+    // Prepare Batch ID for shared attachments
+    var batchId = '';
+    var attachments = $('#bulk-attachments')[0].files;
+    if (attachments.length > 0) {
+        batchId = 'bulk_' + Date.now();
+        var formData = new FormData();
+        formData.append('action', 'prepare_bulk_upload');
+        formData.append('batch_id', batchId);
+        for (var i = 0; i < attachments.length; i++) {
+            formData.append('attachments[]', attachments[i]);
+        }
+        
+        try {
+            $('#bulk-status-text').text('Uploading attachments...');
+            await $.ajax({
+                url: 'ajax_handler.php',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false
+            });
+        } catch (e) {
+            alert('Failed to upload attachments: ' + e.statusText);
+            return;
+        }
+    }
     
-    // Create/Reset Hidden Iframe for Processing
+    // Iframe Setup (only for template mode)
     const iframeId = 'bulk-process-iframe';
     let iframe = document.getElementById(iframeId);
     if (iframe) iframe.remove();
     
-    iframe = document.createElement('iframe');
-    iframe.id = iframeId;
-    iframe.style.width = '1280px';
-    iframe.style.height = '800px';
-    iframe.style.position = 'fixed';
-    iframe.style.top = '0';
-    iframe.style.left = '0';
-    iframe.style.zIndex = '-9999';
-    iframe.style.opacity = '0';
-    document.body.appendChild(iframe);
+    if (mode === 'template') {
+        iframe = document.createElement('iframe');
+        iframe.id = iframeId;
+        iframe.style.width = '1280px';
+        iframe.style.height = '800px';
+        iframe.style.position = 'fixed';
+        iframe.style.top = '0';
+        iframe.style.left = '0';
+        iframe.style.zIndex = '-9999';
+        iframe.style.opacity = '0';
+        document.body.appendChild(iframe);
+    }
     
     let processed = 0;
     let successCount = 0;
@@ -2070,30 +2525,70 @@ window.startBulkProcess = async function() {
         $('#bulk-status-text').text('Processing user ' + (processed + 1) + ' of ' + bulkUsers.length + ' (ID: ' + uid + ')...');
         
         try {
-            const result = await new Promise((resolve, reject) => {
-                const handler = (event) => {
-                    if (event.data.type === 'CERT_PROCESSED' && event.data.uid == uid) {
-                        window.removeEventListener('message', handler);
-                        resolve(event.data);
-                    }
-                };
-                window.addEventListener('message', handler);
-                
-                // Timeout (45s)
-                const timer = setTimeout(() => {
-                    window.removeEventListener('message', handler);
-                    reject(new Error('Timeout waiting for editor response'));
-                }, 45000);
-                
-                // Trigger Iframe Load
-                iframe.src = 'certificate-editor.php?uid=' + uid + '&template_id=' + templateId + '&autogen=true';
-            });
+            // Get selected role (common for both modes)
+            var role = $('input[name="bulk-author-role"]:checked').val();
             
-            if (result.status === 'success') {
-                addReportRow(processed + 1, 'User ' + uid, 'Sent', 'Success', 'Sent via Editor');
+            if (mode === 'links') {
+                // LINK MODE: Direct AJAX Call
+                
+                const res = await new Promise((resolve, reject) => {
+                    $.ajax({
+                        url: 'ajax_handler.php',
+                        type: 'POST',
+                        dataType: 'json',
+                        data: {
+                            action: 'send_bulk_single',
+                            uid: uid,
+                            batch_id: batchId,
+                            override_email: bulkOverrideEmail,
+                            role: role
+                        },
+                        success: function(response) {
+                            if (response.status === 'success') resolve(response);
+                            else reject(new Error(response.message));
+                        },
+                        error: function(xhr, status, error) {
+                            reject(new Error(error));
+                        }
+                    });
+                });
+                
+                addReportRow(processed + 1, 'User ' + uid, 'Sent', 'Success', 'Link Sent (' + role + ')');
                 successCount++;
+
             } else {
-                throw new Error(result.message || 'Error from editor');
+                // TEMPLATE MODE: Iframe Generator
+                const result = await new Promise((resolve, reject) => {
+                    let timer;
+                    const handler = (event) => {
+                        if (event.data && event.data.action === 'CERT_PROGRESS' && event.data.uid == uid) {
+                             $('#bulk-status-text').text('Processing user ' + (processed + 1) + ': ' + event.data.message);
+                        }
+                        
+                        if (event.data && (event.data.action === 'CERT_PROCESSED' || event.data.type === 'CERT_PROCESSED') && event.data.uid == uid) {
+                            window.removeEventListener('message', handler);
+                            clearTimeout(timer);
+                            resolve(event.data);
+                        }
+                    };
+                    window.addEventListener('message', handler);
+                    
+                    timer = setTimeout(() => {
+                        window.removeEventListener('message', handler);
+                        console.error('Timeout waiting for editor response for UID: ' + uid);
+                        reject(new Error('Timeout waiting for editor response (90s)'));
+                    }, 90000);
+                    
+                    // Trigger Iframe
+                    iframe.src = 'certificate-editor.php?uid=' + uid + '&role=' + role + '&template_id=' + templateId + '&autogen=true' + (bulkOverrideEmail ? '&override_email='+encodeURIComponent(bulkOverrideEmail) : '') + (batchId ? '&batch_id='+batchId : '');
+                });
+                
+                if (result.status === 'success') {
+                    addReportRow(processed + 1, 'User ' + uid, 'Sent', 'Success', 'Sent via Editor');
+                    successCount++;
+                } else {
+                    throw new Error(result.message || 'Error from editor');
+                }
             }
             
         } catch (e) {
@@ -2144,7 +2639,7 @@ window.startBulkProcess = async function() {
 };
 
 // Helper for select-all checkboxes updating the button
-function updateBulkButton() {
+window.updateBulkButton = function() {
     var count = $('.user-checkbox:checked').length;
     var btn = $('#btn-bulk-email');
     if (count > 0) {
@@ -2154,6 +2649,7 @@ function updateBulkButton() {
         btn.prop('disabled', true);
         btn.html('<i class="fa fa-envelope"></i> Send Certificates');
     }
+    $('#bulk-selection-count-modal').text(count + ' users selected');
 }
 
 // Toggle Select All
@@ -2161,24 +2657,174 @@ window.toggleSelectAll = function(source) {
     $('.user-checkbox').prop('checked', source.checked);
     updateBulkButton();
 }
-</script>
-<script>
-    $(document).ready(function() {
-        $('#rows-per-page').on('change', function() {
-            var limit = $(this).val();
-            var url = window.location.href;
-            if (url.indexOf('?') > -1) {
-                if (url.indexOf('limit=') > -1) {
-                    url = url.replace(/limit=[^&]+/, 'limit=' + limit);
-                } else {
-                    url = url + '&limit=' + limit;
+
+// WhatsApp Modal Logic
+window.openWhatsAppModal = function(uid) {
+    $('#whatsapp-user-id').val(uid);
+    $('#whatsappChoiceModal').modal('show');
+    
+    // Reset state
+    $('input[name="whatsapp-author"]').prop('checked', false);
+    $('input[name="whatsapp-author"][value="main"]').prop('checked', true);
+    $('#whatsapp-message').val('Loading...');
+    $('#whatsapp-phone').val('');
+    $('#whatsapp-author-confirm').prop('disabled', true);
+    
+    // Disable all co-author options initially
+    $('input[name="whatsapp-author"]').not('[value="main"]').closest('.radio').hide();
+    
+    // Fetch user data
+    $.ajax({
+        url: 'manage-users.php',
+        method: 'POST',
+        data: { action: 'get_whatsapp_data', uid: uid },
+        dataType: 'json',
+        success: function(response) {
+            if(response.status === 'success') {
+                var u = response.data;
+                window.currentWhatsAppUser = u; // Store for later
+                
+                // Helper to format phone for display
+                function formatP(p) {
+                    if(!p) return '';
+                    p = p.replace(/[^0-9]/g, '');
+                    if(p.startsWith('00')) p = p.substring(2);
+                    else if(p.startsWith('0')) p = '971' + p.substring(1);
+                    return p;
                 }
+
+                // Update Main Author Label
+                var mainName = (u.fname || '') + (u.lname ? ' ' + u.lname : '');
+                var mainPhone = formatP(u.contactno);
+                var $mainInput = $('input[name="whatsapp-author"][value="main"]');
+                // Update text node only
+                $mainInput.parent().contents().filter(function(){ return this.nodeType === 3; }).remove();
+                $mainInput.parent().append(' Main author (' + mainName + ' - ' + mainPhone + ')');
+
+                // Update Co-authors
+                for(var i=1; i<=5; i++) {
+                    var coName = u['coauth'+i+'name'];
+                    var $coInput = $('input[name="whatsapp-author"][value="co'+i+'"]');
+                    
+                    if(coName) {
+                        var coRawPhone = u['coauth'+i+'contact'];
+                        var coPhone = formatP(coRawPhone);
+                        if(!coPhone) coPhone = mainPhone; // Fallback to main phone for display
+                        
+                        $coInput.closest('.radio').show();
+                        $coInput.parent().contents().filter(function(){ return this.nodeType === 3; }).remove();
+                        $coInput.parent().append(' Co-author '+i+' (' + coName + ' - ' + coPhone + ')');
+                    } else {
+                        $coInput.closest('.radio').hide();
+                    }
+                }
+                
+                $('#whatsapp-author-confirm').prop('disabled', false);
+                updateWhatsAppPhone();
+                updateWhatsAppMessage();
             } else {
-                url = url + '?limit=' + limit;
+                $('#whatsapp-message').val('Error loading user data.');
             }
-            window.location.href = url;
-        });
+        },
+        error: function() {
+            $('#whatsapp-message').val('Network error.');
+        }
     });
+};
+
+$('input[name="whatsapp-author"]').on('change', function() {
+    updateWhatsAppMessage();
+    updateWhatsAppPhone();
+});
+
+function updateWhatsAppPhone() {
+    var u = window.currentWhatsAppUser;
+    if(!u) return;
+    
+    var role = $('input[name="whatsapp-author"]:checked').val();
+    var phone = '';
+    
+    if (role === 'main') {
+        phone = u.contactno;
+    } else if (role.startsWith('co')) {
+        // Try to find co-author phone (e.g. coauth1contact)
+        var idx = role.substring(2);
+        var key = 'coauth' + idx + 'contact';
+        if (u[key]) phone = u[key];
+        
+        // Fallback to main author if empty
+        if (!phone) phone = u.contactno;
+    }
+    
+    // Format phone
+    if (phone) {
+        phone = phone.replace(/[^0-9]/g, '');
+        if(phone.startsWith('00')) phone = phone.substring(2);
+        else if(phone.startsWith('0')) phone = '971' + phone.substring(1);
+    }
+    
+    $('#whatsapp-phone').val(phone);
+}
+
+function updateWhatsAppMessage() {
+    var u = window.currentWhatsAppUser;
+    if(!u) return;
+    
+    var role = $('input[name="whatsapp-author"]:checked').val();
+    var name = (u.fname || '') + (u.lname ? ' ' + u.lname : ''); // Default main
+    
+    if(role === 'co1') name = u.coauth1name;
+    else if(role === 'co2') name = u.coauth2name;
+    else if(role === 'co3') name = u.coauth3name;
+    else if(role === 'co4') name = u.coauth4name;
+    else if(role === 'co5') name = u.coauth5name;
+
+    // Fallback if name is empty
+    if (!name || name.trim() === '') {
+        name = "Participant";
+    }
+    
+    var link = "https://reg-sys.com/icpm2026/poster26/download-certificate.php?id=" + u.id + "&hash=" + u.hash;
+    if(role !== 'main') {
+        link += "&role=" + role;
+    }
+    
+    var msg = "Dear " + name + ", please download your ICPM participation certificate here: " + link;
+    $('#whatsapp-message').val(msg);
+}
+
+$('#whatsapp-author-confirm').on('click', function() {
+    var u = window.currentWhatsAppUser;
+    if(!u) return;
+    
+    var phone = $('#whatsapp-phone').val();
+    phone = phone.replace(/[^0-9]/g, '');
+    
+    if(phone === '') {
+        alert('Please enter a valid phone number.');
+        return;
+    }
+    
+    var msg = $('#whatsapp-message').val();
+    
+    var url = "https://wa.me/" + phone + "?text=" + encodeURIComponent(msg);
+    window.open(url, '_blank');
+    $('#whatsappChoiceModal').modal('hide');
+});
+
+// Bulk Certificate Mode Toggle
+$(document).ready(function() {
+    $('input[name="certificate-mode"]').on('change', function() {
+        if ($(this).val() === 'links') {
+            $('#bulk-links-author-selection').slideDown();
+            $('#template-group').slideUp();
+            $('#preview-confirm-container').hide();
+        } else {
+            $('#bulk-links-author-selection').slideUp();
+            $('#template-group').slideDown();
+        }
+    });
+});
 </script>
 </body>
 

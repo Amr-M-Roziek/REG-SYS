@@ -724,6 +724,7 @@ async function sendCertificate(uid, isBulk = false) {
     const btn = document.getElementById('btn-confirm-send');
     const statusDiv = document.getElementById('send-status');
     const modal = document.getElementById('send-modal');
+    const notifyUid = (typeof uid === 'string' && uid.indexOf('-') !== -1) ? uid.split('-')[0] : uid;
     
     if(btn) {
         btn.disabled = true;
@@ -745,6 +746,9 @@ async function sendCertificate(uid, isBulk = false) {
     // Wait for fonts to ensure text renders
     await document.fonts.ready;
     
+    // Progress: Fonts Ready
+    if (isBulk && window.parent) window.parent.postMessage({ action: 'CERT_PROGRESS', uid: notifyUid, message: 'Fonts loaded, rendering canvas...' }, '*');
+
     try {
         // Generate PDF blob
         const element = document.getElementById('certificate-preview');
@@ -758,6 +762,9 @@ async function sendCertificate(uid, isBulk = false) {
             logging: false
         });
         
+        // Progress: Canvas Done
+        if (isBulk && window.parent) window.parent.postMessage({ action: 'CERT_PROGRESS', uid: notifyUid, message: 'Canvas generated, creating PDF...' }, '*');
+
         const imgData = canvas.toDataURL('image/jpeg', 0.85);
         const pdf = new window.jspdf.jsPDF('l', 'mm', 'a4');
         pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
@@ -766,6 +773,9 @@ async function sendCertificate(uid, isBulk = false) {
         const pdfDataUri = pdf.output('datauristring');
         const pdfBase64 = pdfDataUri.split(',')[1];
         
+        // Progress: PDF Done
+        if (isBulk && window.parent) window.parent.postMessage({ action: 'CERT_PROGRESS', uid: notifyUid, message: 'PDF generated, uploading...' }, '*');
+
         // Create FormData
         const formData = new FormData();
         formData.append('action', 'send_certificate');
@@ -774,8 +784,17 @@ async function sendCertificate(uid, isBulk = false) {
         let targetUid = uid;
         if (!targetUid && typeof currentUid !== 'undefined') targetUid = currentUid;
         if (!targetUid && typeof currentUserData !== 'undefined') targetUid = currentUserData.refNo;
+        let targetUidForSend = targetUid;
+        if (typeof targetUidForSend === 'string' && targetUidForSend.indexOf('-') !== -1) {
+            targetUidForSend = targetUidForSend.split('-')[0];
+        }
+        formData.append('uid', targetUidForSend);
         
-        formData.append('uid', targetUid);
+        // Append Role if available (defaults to 'main' in backend if omitted)
+        if (typeof currentRole !== 'undefined') {
+            formData.append('role', currentRole);
+        }
+
         formData.append('pdf_data', pdfBase64);
 
         // Check for override email
@@ -817,7 +836,7 @@ async function sendCertificate(uid, isBulk = false) {
                 window.parent.postMessage({ 
                     action: 'CERT_PROCESSED',
                     status: 'success', 
-                    uid: targetUid 
+                    uid: notifyUid 
                 }, '*');
              }
 
@@ -839,7 +858,7 @@ async function sendCertificate(uid, isBulk = false) {
                 action: 'CERT_PROCESSED',
                 status: 'error', 
                 message: e.message,
-                uid: uid 
+                uid: notifyUid 
             }, '*');
         }
     }
